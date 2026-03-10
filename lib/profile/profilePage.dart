@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:wememmory/profile/albumDetailPage.dart';
+import 'package:wememmory/Service_system/auth_service.dart';
+import 'package:wememmory/profile/edit_profile_page.dart';
 import 'package:wememmory/profile/historyPayment.dart';
 import 'package:wememmory/profile/membershipPackage.dart';
 import 'package:wememmory/profile/couponPage.dart';
@@ -12,6 +12,7 @@ import 'package:wememmory/profile/languagePage.dart';
 import 'package:wememmory/shop/termsAndServicesPage.dart';
 import 'package:wememmory/profile/benefitsPage.dart';
 import 'package:wememmory/shop/faqPage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/index.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -52,63 +53,8 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const _PointCard(),
+              // const _PointCard(),
               const SizedBox(height: 16),
-
-              // =========================================================
-              // ✅ ส่วน Header: Logo + Beginner
-              // =========================================================
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Image.asset(
-                    'assets/images/wemorylogo.png',
-                    height: 80,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: Icon(Icons.image_not_supported, color: Colors.grey),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      'Beginner',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFEE743B),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-              
-              // 1. กราฟ
-              const _MetricBarChart(),
-
-              const SizedBox(height: 24),
-
-              // 2. การ์ดเรื่องราวที่น่าจดจำ (อยู่ใต้กราฟ)
-              const _MemorableStoryCard(),
-
-              const SizedBox(height: 24),
-
-              // 3. ส่วนสถิติ (Grid สีฟ้า)
-              const _UsageStatsSection(),
-
-              const SizedBox(height: 24),
-              
-              // 4. สินค้าของฉัน
-              const _ProductStatusCard(),
-
-              const SizedBox(height: 30),
-              const Divider(),
-              const SizedBox(height: 10),
 
               // เมนู
               MenuSection(
@@ -120,29 +66,62 @@ class ProfilePage extends StatelessWidget {
                   'ภาษา',
                   'ข้อตกลงและเงื่อนไขในการใช้บริการ',
                   'คำถามที่พบบ่อย',
+                  'ออจกจากระบบ',
                 ],
-                onItemTap: (item, index) {
+                onItemTap: (item, index) async {
                   switch (index) {
                     case 0:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => CouponPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CouponPage()),
+                      );
                       break;
                     case 1:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => PersonalSecurityPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PersonalSecurityPage(),
+                        ),
+                      );
                       break;
                     case 2:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => AddressSelectionPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddressSelectionPage(),
+                        ),
+                      );
                       break;
                     case 3:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => BankInfoPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => BankInfoPage()),
+                      );
                       break;
                     case 4:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => LanguageSelectionScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LanguageSelectionScreen(),
+                        ),
+                      );
                       break;
                     case 5:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => TermsAndServicesPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TermsAndServicesPage(),
+                        ),
+                      );
                       break;
                     case 6:
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => FAQPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => FAQPage()),
+                      );
+                      break;
+                    case 7: // ออกจากระบบ
+                      _showLogoutDialog(context);
                       break;
                   }
                 },
@@ -156,230 +135,155 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class _MemorableStoryCard extends StatelessWidget {
-  const _MemorableStoryCard();
-
-  Widget _buildStackedImages() {
-    return SizedBox(
-      width: 140,
-      height: 160,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Transform.rotate(
-            angle: -0.15,
-            child: Container(
-              width: 90,
-              height: 110,
-              margin: const EdgeInsets.only(right: 30, bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 4)],
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-            ),
-          ),
-          Transform.rotate(
-            angle: 0.1,
-            child: Container(
-              width: 90,
-              height: 110,
-              margin: const EdgeInsets.only(left: 30, bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 4)],
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-            ),
-          ),
-          Container(
-            width: 100,
-            height: 130,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-              boxShadow: [
-                const BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
+void _showLogoutDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon วงกลมสีแดงจางๆ
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 0.5),
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: Image.asset(
-                      'assets/images/exProfile.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, o, s) => Container(color: Colors.grey[200]),
+                child: const Icon(Icons.logout, color: Colors.red, size: 32),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Logout",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Are you sure you want to logout?",
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(color: Colors.black),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'อากาศดี วิวสวย',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '#ครอบครัว #ความรัก',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 8,
-                    color: const Color(0xFF58A3B6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          // 1. ปิด Dialog
+                          Navigator.pop(context);
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5), // สีพื้นหลังเทาอ่อน
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          _buildStackedImages(),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'เรื่องราวที่น่าจดจำ',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF58A3B6),
+                          // 2. ทำการ Logout
+                          await FirebaseAuth.instance.signOut();
+
+                          // 3. ✨ เพิ่มโค้ดส่วนนี้: เคลียร์หน้าจอที่ซ้อนทับอยู่ทั้งหมดทิ้ง! ✨
+                          if (context.mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              // ถ้าไฟล์ main.dart ของคุณยังตั้งชื่อ route '/' ไว้ ให้ใช้วิธีนี้
+                              MaterialPageRoute(
+                                builder: (context) => const AuthGate(),
+                              ),
+                              (route) =>
+                                  false, // false คือลบหน้าเก่าทิ้งทั้งหมด
+                            );
+                          }
+                        } catch (e) {
+                          print('Error: $e');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text("Logout"),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '88',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 60,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF58A3B6),
-                    height: 1.0,
-                  ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
+    },
+  );
 }
 
-class _ProductStatusCard extends StatelessWidget {
-  const _ProductStatusCard();
+class _HeaderSection extends StatefulWidget {
+  const _HeaderSection({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    const int completed = 9;
-    const int total = 10;
-    const double progress = completed / total;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AlbumHistoryPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEE743B),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'สินค้าของฉัน',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 12,
-                backgroundColor: const Color(0xFFD68F72),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'จัดส่งสำเร็จ $completed/$total รายการ',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<_HeaderSection> createState() => _HeaderSectionState();
 }
 
-class _HeaderSection extends StatelessWidget {
-  const _HeaderSection();
+class _HeaderSectionState extends State<_HeaderSection> {
+  // ฟังก์ชันสำหรับดึงข้อมูลใหม่เวลากลับมาจากหน้า Edit
+  void _refreshProfile() {
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.displayName ?? 'User';
+    // ดึงรูปโปรไฟล์จาก Firebase ถ้าไม่มีให้ใช้รูป Default
+    final photoUrl = user?.photoURL;
+
     return Column(
       children: [
         CircleAvatar(
           radius: 50,
-          backgroundImage: const AssetImage('assets/images/userpic.png'),
           backgroundColor: Colors.grey.shade200,
+          backgroundImage:
+              photoUrl != null
+                  ? NetworkImage(photoUrl) as ImageProvider
+                  : const AssetImage('assets/images/userpic.png'),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'korakrit',
-          style: TextStyle(
+        Text(
+          userName,
+          style: const TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w800,
             fontSize: 22,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'รหัสผู้แนะนำ 1234',
-          style: TextStyle(
-            color: Color(0xFF5A5A5A),
-            fontWeight: FontWeight.w400,
-            fontSize: 16,
+        // ✅ เปลี่ยนข้อความเป็นปุ่มกด
+        GestureDetector(
+          onTap: () {
+            // ไปหน้า Edit Profile และรอการกลับมาเพื่อรีเฟรชหน้าจอ
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EditProfilePage()),
+            ).then((_) => _refreshProfile());
+          },
+          child: const Text(
+            'แก้ไขโปรไฟล์',
+            style: TextStyle(
+              color: Color(0xFFE18253), // เปลี่ยนสีให้ดูเป็นปุ่มที่กดได้
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              decoration: TextDecoration.underline, // ขีดเส้นใต้เล็กน้อย
+            ),
           ),
         ),
       ],
@@ -407,7 +311,7 @@ class _TicketCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Ticket',
+                'Album',
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.w400,
@@ -430,11 +334,12 @@ class _TicketCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MembershipPackagePage(),
-                    ),
-                  ),
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MembershipPackagePage(),
+                        ),
+                      ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFE86A3E),
                     foregroundColor: Colors.white,
@@ -466,9 +371,10 @@ class _TicketCard extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MembershipHistoryPage(
-                          type: HistoryType.subscription,
-                        ),
+                        builder:
+                            (context) => const MembershipHistoryPage(
+                              type: HistoryType.subscription,
+                            ),
                       ),
                     );
                   },
@@ -582,9 +488,10 @@ class _PointCard extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MembershipHistoryPage(
-                          type: HistoryType.point,
-                        ),
+                        builder:
+                            (context) => const MembershipHistoryPage(
+                              type: HistoryType.point,
+                            ),
                       ),
                     );
                   },
@@ -609,345 +516,6 @@ class _PointCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricBarChart extends StatelessWidget {
-  const _MetricBarChart();
-  @override
-  Widget build(BuildContext context) {
-    const Color barColor = Color(0xFFEE743B);
-    const Color gridColor = Color(0xFFFFFFFF);
-    return Container(
-      height: 320,
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: 100,
-          barTouchData: BarTouchData(enabled: false),
-          borderData: FlBorderData(show: false),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            checkToShowHorizontalLine:
-                (value) =>
-                    value == 25 || value == 50 || value == 75 || value == 100,
-            getDrawingHorizontalLine:
-                (value) =>
-                    FlLine(color: gridColor, strokeWidth: 1, dashArray: [5, 5]),
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                interval: 25,
-                getTitlesWidget: (value, meta) {
-                  if (value == 0) return const SizedBox.shrink();
-                  return Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(color: Colors.grey, fontSize: 10),
-                  );
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) {
-                  String text = '';
-                  switch (value.toInt()) {
-                    case 0:
-                      text = 'ความสม่ำเสมอ';
-                      break;
-                    case 1:
-                      text = 'ตรงตามเวลา';
-                      break;
-                    case 2:
-                      text = 'อัพรูปครบ';
-                      break;
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      text,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          barGroups: [
-            _makeBarGroup(0, 50, barColor),
-            _makeBarGroup(1, 25, barColor),
-            _makeBarGroup(2, 25, barColor),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BarChartGroupData _makeBarGroup(int x, double y, Color color) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: color,
-          width: 60,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(10),
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UsageStatsSection extends StatelessWidget {
-  const _UsageStatsSection();
-
-  TextStyle get _digitalTextStyle => GoogleFonts.orbitron(
-    fontSize: 30,
-    fontWeight: FontWeight.w900,
-    color: Colors.white,
-    letterSpacing: 1.5,
-    height: 1.0,
-  );
-
-  TextStyle get _digitalDateStyle => GoogleFonts.orbitron(
-    fontSize: 37,
-    fontWeight: FontWeight.w900,
-    color: const Color(0xFF4A4A4A),
-    letterSpacing: 0.5,
-    height: 1.0,
-  );
-
-  TextStyle get _headerThaiStyle => const TextStyle(
-    fontSize: 40,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    height: 1.0,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          decoration: const BoxDecoration(color: Color(0xFFF9A675)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('บันทึก', style: _headerThaiStyle),
-                  const Text(
-                    'ความทรงจำแรก',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('10 Jan', style: _digitalDateStyle),
-                  Text('2025', style: _digitalDateStyle),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.calendar_month,
-                title: 'เดือนที่ทำต่อเนื่อง',
-                value: '7',
-                isDigitalFont: true,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.qr_code,
-                title: 'จำนวนคนที่ใช้โค้ด',
-                value: '10',
-                isDigitalFont: true,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.share,
-                title: 'แชร์อัลบั้มทั้งหมด',
-                value: '20',
-                isDigitalFont: true,
-                iconSize: 28,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.speed,
-                title: 'เวลาเลือกรูป(นาที)',
-                value: '300.45',
-                isDigitalFont: true,
-                valueFontSize: 20,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: const BoxDecoration(color: Color(0xFFF9A675)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('บันทึก', style: _headerThaiStyle),
-                  const Text(
-                    'เรื่องราว',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '80',
-                style: GoogleFonts.orbitron(
-                  fontSize: 60,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 2.0,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.calendar_today,
-                title: 'เดือนที่ทำทั้งหมด',
-                value: '8',
-                isDigitalFont: true,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatBlock(
-                icon: Icons.image,
-                title: 'วันที่สร้างมากที่สุด',
-                value: 'อาทิตย์',
-                isDigitalFont: false,
-                valueFontSize: 30,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatBlock({
-    required IconData icon,
-    required String title,
-    required String value,
-    bool isDigitalFont = false,
-    double iconSize = 32,
-    double valueFontSize = 40,
-  }) {
-    return Container(
-      height: 100,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF58A3B6),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: iconSize),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style:
-                      isDigitalFont
-                          ? _digitalTextStyle.copyWith(fontSize: valueFontSize)
-                          : GoogleFonts.prompt(
-                            fontSize: valueFontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                  textAlign: TextAlign.right,
-                ),
-              ],
-            ),
           ),
         ],
       ),

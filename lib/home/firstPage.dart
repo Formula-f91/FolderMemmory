@@ -10,7 +10,6 @@ import 'package:wememmory/profile/profilePage.dart';
 import 'package:wememmory/models/media_item.dart';
 
 class FirstPage extends StatefulWidget {
-  
   final int initialIndex;
   final List<MediaItem>? newAlbumItems;
   final String? newAlbumMonth;
@@ -68,10 +67,7 @@ class _FirstPageState extends State<FirstPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: pages,
-            ),
+            child: IndexedStack(index: _currentIndex, children: pages),
           ),
           // ✅ ปรับ Positioned ให้ชิดขอบล่าง
           Positioned(
@@ -109,10 +105,10 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // สีต่างๆ คงเดิม
-    const Color activeIconColor = Color(0xFF67A5BA); 
-    const Color inactiveIconColor = Color(0xFF555555); 
-    const Color centerButtonColor = Color(0xFFED7D31); 
-    const Color staticTextColor = Color(0xFF3C3C3B); 
+    const Color activeIconColor = Color(0xFF67A5BA);
+    const Color inactiveIconColor = Color(0xFF555555);
+    // const Color centerButtonColor = Color(0xFFED7D31);
+    const Color staticTextColor = Color(0xFF3C3C3B);
 
     // ✅ เอา Padding รอบนอกออกเพื่อให้เต็มจอ
     return Stack(
@@ -125,7 +121,8 @@ class CustomBottomNavBar extends StatelessWidget {
             color: Colors.transparent,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05), // เงาบางๆ ด้านบน
+                color: Colors.white, // เงาบางๆ ด้านบน
+                // color: Colors.black.withOpacity(0.05), // เงาบางๆ ด้านบน
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -147,10 +144,16 @@ class CustomBottomNavBar extends StatelessWidget {
                 color: Colors.white.withOpacity(0.5),
                 // border: Border(top: BorderSide(color: Colors.white.withOpacity(0.2), width: 0.5)), // ขอบบนบางๆ
               ),
-              child: SafeArea( // ✅ เพิ่ม SafeArea เพื่อรองรับมือถือรุ่นใหม่ (ไม่มีปุ่มโฮม)
+              child: SafeArea(
+                // ✅ เพิ่ม SafeArea เพื่อรองรับมือถือรุ่นใหม่ (ไม่มีปุ่มโฮม)
                 top: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 0), // Padding ซ้ายขวาภายใน
+                  padding: const EdgeInsets.fromLTRB(
+                    10,
+                    12,
+                    10,
+                    0,
+                  ), // Padding ซ้ายขวาภายใน
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -169,7 +172,7 @@ class CustomBottomNavBar extends StatelessWidget {
                           height: 21.88,
                         ),
                       ),
-                      
+
                       // 2. สมุดภาพ
                       Expanded(
                         child: _buildNavItem(
@@ -267,7 +270,7 @@ class CustomBottomNavBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
-            height: 28, 
+            height: 28,
             child: Center(
               child: Image.asset(
                 iconPath,
@@ -282,7 +285,7 @@ class CustomBottomNavBar extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: textColor, 
+              color: textColor,
               fontSize: 10, // ปรับขนาดตัวหนังสือให้พอดี
               fontWeight: FontWeight.w500,
             ),
