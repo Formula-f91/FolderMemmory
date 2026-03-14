@@ -31,6 +31,7 @@ class _HomePageState extends State<HomePage> {
     final user = FirebaseAuth.instance.currentUser;
     // ถ้าดึงชื่อไม่ได้ (เช่น เกิด error หรือตั้งค่าไม่ทัน) จะใช้คำว่า 'User' เป็นค่าเริ่มต้น (Fallback)
     final userName = user?.displayName ?? 'User';
+    final photoUrl = user?.photoURL;
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: CustomScrollView(
@@ -54,12 +55,22 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/userpic.png'),
-                      fit: BoxFit.cover,
-                    ),
+                    image:
+                        photoUrl != null
+                            ? DecorationImage(
+                              image: NetworkImage(
+                                photoUrl,
+                              ), // ดึงรูปจาก Firebase Storage
+                              fit: BoxFit.cover,
+                            )
+                            : const DecorationImage(
+                              image: AssetImage(
+                                'assets/images/userpic.png',
+                              ), // รูป Default ถ้าไม่มีรูปในระบบ
+                              fit: BoxFit.cover,
+                            ),
                   ),
                 ),
                 const SizedBox(width: 14),

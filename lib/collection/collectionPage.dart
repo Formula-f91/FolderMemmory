@@ -6,127 +6,297 @@ import 'package:wememmory/collection/share_sheet.dart';
 import 'package:wememmory/constants.dart';
 import 'package:wememmory/data/album_data.dart';
 import 'package:wememmory/models/media_item.dart' hide AlbumCollection;
-import 'package:wememmory/shop/chooseMediaItem.dart'; 
+import 'package:wememmory/shop/chooseMediaItem.dart';
 
-
-// หน้า สมุดภาพ 
+// หน้า สมุดภาพ
 class CollectionPage extends StatefulWidget {
   final List<MediaItem>? newAlbumItems;
   final String? newAlbumMonth;
 
-  const CollectionPage({
-    super.key,
-    this.newAlbumItems,
-    this.newAlbumMonth,
-  });
+  const CollectionPage({super.key, this.newAlbumItems, this.newAlbumMonth});
 
   @override
   State<CollectionPage> createState() => _CollectionPageState();
 }
 
 class _CollectionPageState extends State<CollectionPage> {
-  
-  // เราจะใช้ globalAlbumList แทนเพื่อให้ข้อมูลคงอยู่ถาวรในขณะเปิดแอป
+  String? _selectedYear;
+
+  List<String> get _availableYears {
+    final years =
+        globalAlbumList
+            .map((a) {
+              final parts = a.month.split(' ');
+              return parts.length > 1 ? parts[1] : '';
+            })
+            .where((y) => y.isNotEmpty)
+            .toSet()
+            .toList();
+    years.sort((a, b) => b.compareTo(a));
+    return years;
+  }
+
+  List<dynamic> get _filteredAlbums {
+    if (_selectedYear == null) return globalAlbumList;
+    return globalAlbumList.where((a) {
+      final parts = a.month.split(' ');
+      return parts.length > 1 && parts[1] == _selectedYear;
+    }).toList();
+  }
 
   @override
   void initState() {
     super.initState();
-    
-    // ตรวจสอบข้อมูลใหม่ที่ส่งมาจากหน้า Success
     if (widget.newAlbumItems != null && widget.newAlbumMonth != null) {
-      
-      // Logic: ตรวจสอบว่าอัลบั้มชุดนี้ถูกเพิ่มเข้า Global List หรือยัง (ป้องกันการเพิ่มซ้ำ)
-      bool isDuplicate = globalAlbumList.any((album) => 
-        album.month == widget.newAlbumMonth && album.items == widget.newAlbumItems);
-      
+      bool isDuplicate = globalAlbumList.any(
+        (album) =>
+            album.month == widget.newAlbumMonth &&
+            album.items == widget.newAlbumItems,
+      );
       if (!isDuplicate) {
-        // เพิ่มข้อมูลใหม่เข้า Global List
-        // ใช้ insert(0, ...) เพื่อให้อัลบั้มใหม่ล่าสุดแสดงอยู่บนสุดของรายการ
-        globalAlbumList.insert(0, AlbumCollection(
-          month: widget.newAlbumMonth!,
-          items: widget.newAlbumItems!,
-        ));
+        globalAlbumList.insert(
+          0,
+          AlbumCollection(
+            month: widget.newAlbumMonth!,
+            items: widget.newAlbumItems!,
+          ),
+        );
       }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_availableYears.isNotEmpty && mounted) {
+        setState(() => _selectedYear = _availableYears.first);
+      }
+    });
+  }
+
+  // ✅ ลบอัลบั้ม พร้อม Confirm Dialog
+  Future<void> _deleteAlbum(dynamic album) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              "ลบอัลบั้ม",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              "ต้องการลบอัลบั้ม \"${album.month}\" ใช่หรือไม่?\nการกระทำนี้ไม่สามารถย้อนกลับได้",
+              style: const TextStyle(fontSize: 14, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(
+                  "ยกเลิก",
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade400,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text("ลบ"),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        globalAlbumList.remove(album);
+        // ✅ ถ้าปีที่เลือกไม่มีอัลบั้มเหลือแล้ว ให้ reset dropdown
+        if (_selectedYear != null && !_availableYears.contains(_selectedYear)) {
+          _selectedYear =
+              _availableYears.isNotEmpty ? _availableYears.first : null;
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredAlbums;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // ส่วนที่อยู่คงที่ด้านบน (Search & Tab)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: Column(
-                children: [
-                  _SearchBar(),
-                  const SizedBox(height: 24),
-                  const _TabSelector(),
-                  const SizedBox(height: 20),
-                ],
-              ),
+              child: _SearchBar(),
             ),
 
-            // ส่วนรายการอัลบั้มที่ดึงมาจาก Global List
+            const SizedBox(height: 16),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildYearDropdown(),
+            ),
+
+            const SizedBox(height: 16),
+
             Expanded(
-              child: globalAlbumList.isEmpty
-                  ? const Center(child: Text("ยังไม่มีคอลเลกชัน", style: TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-                      itemCount: globalAlbumList.length, // ใช้จำนวนจาก Global List
-                      itemBuilder: (context, index) {
-                        final album = globalAlbumList[index]; // ดึงข้อมูลแต่ละอัลบั้ม
-                        
-                        return Column(
-                          children: [
-                            _MonthSectionHeader(
-                              title: album.month,
-                              items: album.items,
-                            ),
-                            const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MonthDetailPage(
-                                      monthName: album.month,
-                                      items: album.items,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: _AlbumPreviewSection(
+              child:
+                  filtered.isEmpty
+                      ? Center(
+                        child: Text(
+                          globalAlbumList.isEmpty
+                              ? "ยังไม่มีคอลเลกชัน"
+                              : "ไม่พบอัลบั้มในปี $_selectedYear",
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      )
+                      : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final album = filtered[index];
+                          return Column(
+                            children: [
+                              // ✅ ส่ง onDelete ไปให้ Header
+                              _MonthSectionHeader(
+                                title: album.month,
                                 items: album.items,
-                                monthTitle: album.month,
+                                onDelete: () => _deleteAlbum(album),
                               ),
-                            ),
-                            const SizedBox(height: 30), // ระยะห่างระหว่างแต่ละอัลบั้ม
-                          ],
-                        );
-                      },
-                    ),
+                              const SizedBox(height: 12),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => MonthDetailPage(
+                                            monthName: album.month,
+                                            items: album.items,
+                                          ),
+                                    ),
+                                  );
+                                },
+                                child: _AlbumPreviewSection(
+                                  items: album.items,
+                                  monthName: album.month,
+                                ),
+                              ),
+                              const SizedBox(height: 30),
+                            ],
+                          );
+                        },
+                      ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildYearDropdown() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonHideUnderline(
+        child:
+            _availableYears.isEmpty
+                ? const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "ยังไม่มีอัลบั้ม",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+                : DropdownButton<String>(
+                  value: _selectedYear,
+                  isExpanded: true,
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Color(0xFF6BB0C5),
+                  ),
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: null,
+                      child: Text(
+                        "ทั้งหมด",
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    ..._availableYears.map(
+                      (year) => DropdownMenuItem<String>(
+                        value: year,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 16,
+                              color: Color(0xFF6BB0C5),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(year),
+                            const SizedBox(width: 8),
+                            Text(
+                              "(${globalAlbumList.where((a) {
+                                final parts = a.month.split(' ');
+                                return parts.length > 1 && parts[1] == year;
+                              }).length} อัลบั้ม)",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) => setState(() => _selectedYear = val),
+                ),
+      ),
+    );
+  }
 }
 
-// -------------------------------------------------------------------
-// ส่วน Header ที่มีปุ่ม Print
-// -------------------------------------------------------------------
+// ── Month Section Header — เพิ่มปุ่ม Delete ──
 class _MonthSectionHeader extends StatelessWidget {
   final String title;
-  final List<MediaItem>? items; // รับรายการรูปภาพเพิ่มเข้ามา
+  final List<MediaItem>? items;
+  final VoidCallback onDelete; // ✅ รับ callback ลบ
 
   const _MonthSectionHeader({
     required this.title,
-    this.items, // รับค่าจาก Constructor
+    required this.onDelete,
+    this.items,
   });
 
   @override
@@ -134,25 +304,24 @@ class _MonthSectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87)),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
         Row(
           children: [
-            // [3] ปุ่ม Print: กดแล้วส่งรูปไปยังหน้า OrderPage
+            // ปุ่ม Print
             GestureDetector(
               onTap: () {
                 if (items != null && items!.isNotEmpty) {
-                  print("กำลังส่งรูป ${items!.length} รูป ไปยังหน้าสั่งซื้อ");
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      // เรียกใช้ OrderPage พร้อมส่ง items ที่มาจาก CollectionPage
-                      builder: (context) => OrderPage(
-                        items: items!, 
-                      ),
+                      builder: (context) => OrderPage(items: items!),
                     ),
                   );
                 } else {
@@ -164,16 +333,38 @@ class _MonthSectionHeader extends StatelessWidget {
               child: _buildIconButton('assets/icons/print.png'),
             ),
             const SizedBox(width: 8),
+
+            // ปุ่ม Share
             GestureDetector(
               onTap: () {
                 showModalBottomSheet(
                   context: context,
-                  isScrollControlled: true, // เพื่อให้กำหนดความสูงเองได้
+                  isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (context) => const ShareSheet(),
                 );
               },
               child: _buildIconButton('assets/icons/share.png'),
+            ),
+            const SizedBox(width: 8),
+
+            // ✅ ปุ่ม Delete
+            GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.red.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 20,
+                  color: Colors.red.shade300,
+                ),
+              ),
             ),
           ],
         ),
@@ -186,8 +377,9 @@ class _MonthSectionHeader extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8)),
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
       padding: const EdgeInsets.all(10),
       child: Image.asset(
         iconPath,
@@ -200,14 +392,18 @@ class _MonthSectionHeader extends StatelessWidget {
   }
 }
 
-// -------------------------------------------------------------------
-// Widget อื่นๆ คงเดิม (ไม่ต้องแก้ไข)
-// -------------------------------------------------------------------
+// ── Album Preview Section ──
 class _AlbumPreviewSection extends StatelessWidget {
   final List<MediaItem> items;
-  final String monthTitle;
+  final String monthName;
 
-  const _AlbumPreviewSection({required this.items, required this.monthTitle});
+  const _AlbumPreviewSection({required this.items, required this.monthName});
+
+  String get _monthTitle => monthName.split(' ')[0];
+  String get _yearTitle {
+    final parts = monthName.split(' ');
+    return parts.length > 1 ? parts[1] : '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,9 +412,7 @@ class _AlbumPreviewSection extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Container(
           padding: const EdgeInsets.all(10),
-          decoration: const BoxDecoration(
-            color: Color(0xFF555555),
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF555555)),
           child: IntrinsicWidth(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -236,10 +430,25 @@ class _AlbumPreviewSection extends StatelessWidget {
                       Container(
                         decoration: const BoxDecoration(color: Colors.white),
                         child: Center(
-                          child: Text(
-                            monthTitle,
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.bold),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _monthTitle,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (_yearTitle.isNotEmpty)
+                                Text(
+                                  _yearTitle,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -282,6 +491,7 @@ class _AlbumPreviewSection extends StatelessWidget {
   }
 }
 
+// ── Static Photo Slot ──
 class _StaticPhotoSlot extends StatefulWidget {
   final MediaItem item;
   const _StaticPhotoSlot({required this.item});
@@ -301,19 +511,12 @@ class _StaticPhotoSlotState extends State<_StaticPhotoSlot> {
 
   Future<void> _loadImage() async {
     if (widget.item.capturedImage != null) {
-      if (mounted) {
-        setState(() {
-          _imageData = widget.item.capturedImage;
-        });
-      }
+      if (mounted) setState(() => _imageData = widget.item.capturedImage);
     } else {
-      final data = await widget.item.asset
-          .thumbnailDataWithSize(const ThumbnailSize(300, 300));
-      if (mounted) {
-        setState(() {
-          _imageData = data;
-        });
-      }
+      final data = await widget.item.asset.thumbnailDataWithSize(
+        const ThumbnailSize(300, 300),
+      );
+      if (mounted) setState(() => _imageData = data);
     }
   }
 
@@ -341,6 +544,7 @@ class _StaticPhotoSlotState extends State<_StaticPhotoSlot> {
   }
 }
 
+// ── Search Bar ──
 class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -369,53 +573,6 @@ class _SearchBar extends StatelessWidget {
                 isDense: true,
                 border: InputBorder.none,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabSelector extends StatelessWidget {
-  const _TabSelector();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: const Text("ปี",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              alignment: Alignment.center,
-              child: Text("เดือน",
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 16)),
             ),
           ),
         ],

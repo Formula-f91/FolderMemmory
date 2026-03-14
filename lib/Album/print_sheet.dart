@@ -6,14 +6,10 @@ import 'package:wememmory/models/media_item.dart';
 
 // หน้า สั่งพิมพ์อัลบั้มรูป
 class PrintSheet extends StatefulWidget {
-  final List<MediaItem> items; //รับตัวแปรมาแสดงภาพ จาก final_preview_sheet.dart
-  final String monthName; //รับชื่อเดือนมาแสดง จาก final_preview_sheet.dart
+  final List<MediaItem> items;
+  final String monthName; // รับ "มกราคม 2025" เต็ม
 
-  const PrintSheet({
-    super.key,
-    required this.items,
-    required this.monthName,
-  });
+  const PrintSheet({super.key, required this.items, required this.monthName});
 
   @override
   State<PrintSheet> createState() => _PrintSheetState();
@@ -32,9 +28,6 @@ class _PrintSheetState extends State<PrintSheet> {
       ),
       child: Column(
         children: [
-          // ---------------------------------------------------------
-          // Slide Indicator (แถบขีดด้านบน)
-          // ---------------------------------------------------------
           const SizedBox(height: 12),
           Container(
             width: 61,
@@ -44,7 +37,6 @@ class _PrintSheetState extends State<PrintSheet> {
               borderRadius: BorderRadius.circular(2.5),
             ),
           ),
-          // ---------------------------------------------------------
 
           // 1. Header
           Padding(
@@ -54,7 +46,11 @@ class _PrintSheetState extends State<PrintSheet> {
               children: [
                 const Text(
                   'สั่งพิมพ์',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
@@ -70,8 +66,8 @@ class _PrintSheetState extends State<PrintSheet> {
           ),
           const SizedBox(height: 9),
           Divider(
-            height: 1,       
-            color: Colors.grey.withOpacity(0.2), 
+            height: 1,
+            color: Colors.grey.withOpacity(0.2),
             indent: 20,
             endIndent: 20,
           ),
@@ -83,37 +79,45 @@ class _PrintSheetState extends State<PrintSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // หัวข้ออัลบั้ม
-                  const Text("อัลบั้มรูปของคุณ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text(
+                    "อัลบั้มรูปของคุณ",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 12),
 
-                  // ส่วนแสดงรูป (ใช้ Widget ที่แยกไว้)
-                  _PrintPreviewSection(items: widget.items, monthName: widget.monthName),
-
-                  const SizedBox(height: 24),
-
-                  // 1. ที่อยู่ผู้ส่ง (แสดงตลอด)
-                  _buildAddressCard(
-                    title: "ที่อยู่",
-                    address: "หมู่บ้าน สุวรรณภูมิทาวน์ซอย ลาดกระบัง 54/3 ถนนลาดกระบัง\nแขวงลาดกระบัง เขตลาดกระบัง กรุงเทพมหานคร",
+                  // ✅ ส่ง monthName เต็มไปแสดงในอัลบั้ม
+                  _PrintPreviewSection(
+                    items: widget.items,
+                    monthName: widget.monthName,
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Toggle ส่งของขวัญ
+                  _buildAddressCard(
+                    title: "ที่อยู่",
+                    address:
+                        "หมู่บ้าน สุวรรณภูมิทาวน์ซอย ลาดกระบัง 54/3 ถนนลาดกระบัง\nแขวงลาดกระบัง เขตลาดกระบัง กรุงเทพมหานคร",
+                  ),
+
+                  const SizedBox(height: 24),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("ส่งของขวัญ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      // ✅ เรียกใช้ Custom Switch ตรงนี้
+                      const Text(
+                        "ส่งของขวัญ",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       _buildCustomSwitch(
-                        _isGift, 
-                        (val) => setState(() => _isGift = val)
+                        _isGift,
+                        (val) => setState(() => _isGift = val),
                       ),
                     ],
                   ),
 
-                  // 2. ที่อยู่ผู้รับ (แสดงเมื่อเปิด Gift Mode)
                   if (_isGift) ...[
                     const SizedBox(height: 20),
                     _buildAddressCard(
@@ -124,9 +128,11 @@ class _PrintSheetState extends State<PrintSheet> {
 
                   const SizedBox(height: 20),
 
-                  // กล่องยอดเครดิต
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF67A5BA),
                       borderRadius: BorderRadius.circular(8),
@@ -139,18 +145,37 @@ class _PrintSheetState extends State<PrintSheet> {
                           children: [
                             Row(
                               children: [
-                                const Text("ยอดเครดิตคงเหลือ : ", style: TextStyle(color: Colors.white, fontSize: 14)),
+                                const Text(
+                                  "ยอดเครดิตคงเหลือ : ",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 Image.asset(
                                   'assets/icons/dollar-circle.png',
                                   width: 24,
                                   height: 24,
                                 ),
                                 const SizedBox(width: 4),
-                                const Text("10", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                const Text(
+                                  "10",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 2),
-                            const Text("เติมเครดิตตามจำนวนที่คุณต้องการ", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                            const Text(
+                              "เติมเครดิตตามจำนวนที่คุณต้องการ",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                         ElevatedButton(
@@ -161,9 +186,17 @@ class _PrintSheetState extends State<PrintSheet> {
                             minimumSize: const Size(80, 32),
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                           ),
-                          child: const Text("เติมเครดิต", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            "เติมเครดิต",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -171,13 +204,18 @@ class _PrintSheetState extends State<PrintSheet> {
 
                   const SizedBox(height: 24),
 
-                  // รายละเอียดการสั่งพิมพ์
-                  const Text("รายละเอียดการสั่งพิมพ์", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "รายละเอียดการสั่งพิมพ์",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("อัลบั้มรูปของคุณ", style: TextStyle(color: Colors.black87, fontSize: 14)),
+                      const Text(
+                        "อัลบั้มรูปของคุณ",
+                        style: TextStyle(color: Colors.black87, fontSize: 14),
+                      ),
                       Row(
                         children: [
                           Image.asset(
@@ -186,7 +224,13 @@ class _PrintSheetState extends State<PrintSheet> {
                             height: 24,
                           ),
                           const SizedBox(width: 4),
-                          const Text("10", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const Text(
+                            "10",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -198,7 +242,7 @@ class _PrintSheetState extends State<PrintSheet> {
 
           // 3. Bottom Bar
           Container(
-            padding: const EdgeInsets.fromLTRB(15, 10 , 16, 30),
+            padding: const EdgeInsets.fromLTRB(15, 10, 16, 30),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: Colors.black12)),
@@ -206,12 +250,15 @@ class _PrintSheetState extends State<PrintSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // --- ส่วนแสดงเครดิต (ซ้าย) ---
                 Row(
                   children: [
                     const Text(
                       "เครดิตที่ต้องใช้",
-                      style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.normal),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.normal,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Image.asset(
@@ -222,12 +269,14 @@ class _PrintSheetState extends State<PrintSheet> {
                     const SizedBox(width: 6),
                     const Text(
                       "10",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ],
                 ),
-
-                // --- ปุ่มสั่งพิมพ์ (ขวา) ---
                 SizedBox(
                   width: 140,
                   height: 48,
@@ -236,10 +285,12 @@ class _PrintSheetState extends State<PrintSheet> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => OrderSuccessPage(
-                            items: widget.items,
-                            monthName: widget.monthName,
-                          ),
+                          builder:
+                              (context) => OrderSuccessPage(
+                                items: widget.items,
+                                // ✅ ส่ง monthName เต็มต่อไป
+                                monthName: widget.monthName,
+                              ),
                         ),
                       );
                     },
@@ -250,7 +301,11 @@ class _PrintSheetState extends State<PrintSheet> {
                     ),
                     child: const Text(
                       "สั่งพิมพ์",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -262,12 +317,14 @@ class _PrintSheetState extends State<PrintSheet> {
     );
   }
 
-  // ✅ Helper Widget สำหรับสร้างกล่องที่อยู่
   Widget _buildAddressCard({required String title, required String address}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -281,7 +338,11 @@ class _PrintSheetState extends State<PrintSheet> {
               Expanded(
                 child: Text(
                   address,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.4),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ),
               const Icon(Icons.chevron_right, color: Colors.grey),
@@ -292,7 +353,6 @@ class _PrintSheetState extends State<PrintSheet> {
     );
   }
 
-  // ✅ Custom Switch Widget (ปรับให้รับค่า value และ onChanged)
   Widget _buildCustomSwitch(bool value, Function(bool) onChanged) {
     return GestureDetector(
       onTap: () => onChanged(!value),
@@ -303,22 +363,17 @@ class _PrintSheetState extends State<PrintSheet> {
         padding: const EdgeInsets.all(3.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          // พื้นหลัง: สีส้ม (เปิด) / สีเทาอ่อน (ปิด)
-          color: value
-              ? const Color(0xFFED7D31)
-              : const Color(0xFFE0E0E0),
+          color: value ? const Color(0xFFED7D31) : const Color(0xFFE0E0E0),
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
-          // สลับตำแหน่งซ้าย-ขวา
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             width: 24,
             height: 24,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              // วงกลมเป็นสีขาวเมื่อเปิด, เป็นสีเทาเข้ม (C7C7C7) เมื่อปิด
               color: value ? Colors.white : const Color(0xFFC7C7C7),
             ),
           ),
@@ -328,15 +383,18 @@ class _PrintSheetState extends State<PrintSheet> {
   }
 }
 
-// ... _PrintPreviewSection ... (ส่วนนี้เหมือนเดิม)
+// ✅ _PrintPreviewSection — แสดงเดือน + ปีในกล่องชื่อ
 class _PrintPreviewSection extends StatelessWidget {
   final List<MediaItem> items;
-  final String monthName;
+  final String monthName; // "มกราคม 2025"
 
-  const _PrintPreviewSection({
-    required this.items,
-    required this.monthName,
-  });
+  const _PrintPreviewSection({required this.items, required this.monthName});
+
+  String get _monthTitle => monthName.split(' ')[0];
+  String get _yearTitle {
+    final parts = monthName.split(' ');
+    return parts.length > 1 ? parts[1] : '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -345,9 +403,7 @@ class _PrintPreviewSection extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Container(
           padding: const EdgeInsets.all(10),
-          decoration: const BoxDecoration(
-            color: Color(0xFF555555),
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF555555)),
           child: IntrinsicWidth(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -362,18 +418,35 @@ class _PrintPreviewSection extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
+                      // ✅ กล่องชื่อเดือน + ปี
                       Container(
                         decoration: const BoxDecoration(color: Colors.white),
                         child: Center(
-                          child: Text(
-                            monthName,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _monthTitle,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (_yearTitle.isNotEmpty)
+                                Text(
+                                  _yearTitle,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
                       for (int i = 0; i < 5; i++)
                         if (i < items.length)
-                          _StaticPhotoSlot(item: items[i]) 
+                          _StaticPhotoSlot(item: items[i])
                         else
                           const SizedBox(),
                     ],
@@ -410,7 +483,6 @@ class _PrintPreviewSection extends StatelessWidget {
   }
 }
 
-// ... _StaticPhotoSlot ... (ส่วนนี้เหมือนเดิม)
 class _StaticPhotoSlot extends StatefulWidget {
   final MediaItem item;
   const _StaticPhotoSlot({required this.item});
@@ -430,18 +502,12 @@ class _StaticPhotoSlotState extends State<_StaticPhotoSlot> {
 
   Future<void> _loadImage() async {
     if (widget.item.capturedImage != null) {
-      if (mounted) {
-        setState(() {
-          _imageData = widget.item.capturedImage;
-        });
-      }
+      if (mounted) setState(() => _imageData = widget.item.capturedImage);
     } else {
-      final data = await widget.item.asset.thumbnailDataWithSize(const ThumbnailSize(300, 300));
-      if (mounted) {
-        setState(() {
-          _imageData = data;
-        });
-      }
+      final data = await widget.item.asset.thumbnailDataWithSize(
+        const ThumbnailSize(300, 300),
+      );
+      if (mounted) setState(() => _imageData = data);
     }
   }
 

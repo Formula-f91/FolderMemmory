@@ -222,7 +222,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   onTap: _pickImage,
                   child: const Text(
                     'Change Picture',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                    ),
                   ),
                 ),
 
