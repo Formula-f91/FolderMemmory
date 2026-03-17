@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:wememmory/Album/upload_photo_page.dart';
-import 'package:wememmory/data/album_data.dart'; // ✅ import globalAlbumList
+import 'package:wememmory/services/album_service.dart'; // ✅ เปลี่ยนจาก album_data เป็น album_service
 
 class CreateAlbumModal extends StatefulWidget {
   const CreateAlbumModal({super.key});
@@ -28,9 +28,34 @@ class _CreateAlbumModalState extends State<CreateAlbumModal> {
     "ธันวาคม",
   ];
 
-  // ✅ เช็คว่าอัลบั้มเดือน+ปีนี้สร้างแล้วหรือยัง โดยดูจาก globalAlbumList
+  // ✅ เก็บรายชื่ออัลบั้มที่มีแล้วจาก Firebase เป็น Set เพื่อ lookup เร็ว
+  Set<String> _doneMonths = {};
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoneStatus();
+  }
+
+  // ✅ โหลดสถานะจาก Firebase ตอนเปิด Modal
+  Future<void> _loadDoneStatus() async {
+    setState(() => _isLoading = true);
+    try {
+      final months = await AlbumService.getAlbumMonths();
+      if (mounted) {
+        setState(() => _doneMonths = months.toSet());
+      }
+    } catch (e) {
+      debugPrint('Load done status error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ เช็คจาก _doneMonths ที่โหลดจาก Firebase มาแล้ว
   bool _isAlbumDone(String fullLabel) {
-    return globalAlbumList.any((album) => album.month == fullLabel);
+    return _doneMonths.contains(fullLabel);
   }
 
   @override
@@ -89,6 +114,8 @@ class _CreateAlbumModalState extends State<CreateAlbumModal> {
                           }).toList(),
                       onChanged: (int? newValue) {
                         if (newValue != null) {
+                          // ✅ แค่ setState เปลี่ยนปี
+                          // ไม่ต้อง fetch ใหม่ เพราะ _doneMonths เก็บทุกปีอยู่แล้ว
                           setState(() => selectedYear = newValue);
                         }
                       },
@@ -128,27 +155,38 @@ class _CreateAlbumModalState extends State<CreateAlbumModal> {
 
           // 3. List of Months
           Expanded(
-            child: ListView.separated(
-              itemCount: 12,
-              physics: const BouncingScrollPhysics(),
-              separatorBuilder:
-                  (context, index) => const Divider(
-                    height: 1,
-                    indent: 24,
-                    endIndent: 24,
-                    color: Colors.black12,
-                  ),
-              itemBuilder: (context, index) {
-                final monthIndex = 11 - index;
-                final monthName = thaiMonths[monthIndex];
-                final fullLabel = "$monthName $selectedYear";
+            // ✅ แสดง loading spinner ขณะดึงสถานะจาก Firebase
+            child:
+                _isLoading
+                    ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF6BB0C5),
+                      ),
+                    )
+                    : ListView.separated(
+                      itemCount: 12,
+                      physics: const BouncingScrollPhysics(),
+                      separatorBuilder:
+                          (context, index) => const Divider(
+                            height: 1,
+                            indent: 24,
+                            endIndent: 24,
+                            color: Colors.black12,
+                          ),
+                      itemBuilder: (context, index) {
+                        final monthIndex = 11 - index;
+                        final monthName = thaiMonths[monthIndex];
+                        final fullLabel = "$monthName $selectedYear";
 
-                // ✅ เช็คจาก globalAlbumList จริงๆ
-                final bool isDone = _isAlbumDone(fullLabel);
+                        // ✅ เช็คจาก Firebase ผ่าน _doneMonths
+                        final bool isDone = _isAlbumDone(fullLabel);
 
-                return _AlbumOptionItem(month: fullLabel, isDone: isDone);
-              },
-            ),
+                        return _AlbumOptionItem(
+                          month: fullLabel,
+                          isDone: isDone,
+                        );
+                      },
+                    ),
           ),
         ],
       ),
@@ -169,9 +207,6 @@ class _AlbumOptionItem extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => UploadPhotoPage(selectedMonth: month),
     );
-    // ✅ ไม่เรียก onUploaded() ที่นี่
-    // Modal ถูก pop ไปก่อนแล้ว การเรียก setState จะเกิด "setState after dispose"
-    // เมื่อผู้ใช้เปิด Modal ใหม่ จะ rebuild และอ่าน globalAlbumList ใหม่เองอัตโนมัติ
   }
 
   @override
@@ -206,7 +241,6 @@ class _AlbumOptionItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // ✅ แสดงสถานะ "สร้างอัลบั้มสำเร็จ" หรือ "สร้างอัลบั้ม"
                   Text(
                     isDone ? "สร้างอัลบั้มสำเร็จ" : "สร้างอัลบั้ม",
                     style: TextStyle(
@@ -218,8 +252,6 @@ class _AlbumOptionItem extends StatelessWidget {
                 ],
               ),
             ),
-
-            // ✅ ไอคอนแสดงสถานะ
             if (isDone)
               const Icon(Icons.check_circle, color: Color(0xFF66BB6A), size: 24)
             else

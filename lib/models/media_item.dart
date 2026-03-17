@@ -27,9 +27,3 @@ class AlbumPhoto {
   AlbumPhoto({required this.mediaItem, this.imageBytes});
 }
 
-class AlbumCollection {
-  final String month;
-  final List<MediaItem> items;
-
-  AlbumCollection({required this.month, required this.items});
-}

@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:wememmory/Album/photo_readonly_page.dart';
 import 'package:wememmory/Album/print_sheet.dart';
+import 'package:wememmory/data/album_data.dart';
 import 'package:wememmory/models/media_item.dart';
+import 'package:wememmory/services/album_service.dart';
 
 // หน้า พรีวิวสุดท้าย & ยืนยัน
 class FinalPreviewSheet extends StatefulWidget {
   final List<MediaItem> items;
-  final String monthName; // รับ "มกราคม 2025" เต็ม
+  final String monthName;
 
   const FinalPreviewSheet({
     super.key,
@@ -23,17 +25,55 @@ class FinalPreviewSheet extends StatefulWidget {
 class _FinalPreviewSheetState extends State<FinalPreviewSheet> {
   bool _withCaption = false;
   bool _withDate = false;
-  bool _isUploading = false;
 
-  // ✅ แยกเดือนและปีจาก monthName "มกราคม 2025"
-  String get _monthTitle {
-    final parts = widget.monthName.split(' ');
-    return parts[0];
-  }
-
+  String get _monthTitle => widget.monthName.split(' ')[0];
   String get _yearTitle {
     final parts = widget.monthName.split(' ');
     return parts.length > 1 ? parts[1] : '';
+  }
+
+  // ✅ แสดง Upload Progress Dialog
+  Future<void> _onConfirm() async {
+    int _current = 0;
+    final int _total = widget.items.length;
+
+    // ✅ เปิด Dialog และรอผลลัพธ์
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (dialogContext) => _UploadProgressDialog(
+            monthName: widget.monthName,
+            total: _total,
+            uploadFuture: AlbumService.saveAlbum(
+              monthName: widget.monthName,
+              items: widget.items,
+              onProgress: (current, total) {
+                _current = current;
+              },
+            ),
+            getCurrentProgress: () => _current,
+          ),
+    );
+
+    if (!mounted) return;
+
+    // ✅ อัพโหลดสำเร็จ → บันทึก local และเปิด PrintSheet
+    if (result == true) {
+      globalAlbumList.insert(
+        0,
+        AlbumCollection(month: widget.monthName, items: widget.items),
+      );
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder:
+            (context) =>
+                PrintSheet(items: widget.items, monthName: widget.monthName),
+      );
+    }
   }
 
   @override
@@ -130,7 +170,7 @@ class _FinalPreviewSheetState extends State<FinalPreviewSheet> {
 
           const SizedBox(height: 20),
 
-          // 4. Preview Text — ✅ แสดงเดือน + ปี
+          // 4. Preview Text
           Text(
             "คอลเลกชัน${widget.monthName}ของคุณจะออกมาเป็นแบบนี้..\nพร้อมที่จะสร้างความทรงจำที่จับต้องได้แล้วหรือยัง?",
             textAlign: TextAlign.center,
@@ -139,19 +179,16 @@ class _FinalPreviewSheetState extends State<FinalPreviewSheet> {
 
           const SizedBox(height: 16),
 
-          // 5. Album Preview Area
+          // 5. Album Preview
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // ✅ ส่ง monthName เต็ม "มกราคม 2025" ให้ _AlbumPreviewSection
                   _AlbumPreviewSection(
                     items: widget.items,
                     monthName: widget.monthName,
                   ),
-
                   const SizedBox(height: 20),
-
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -198,19 +235,7 @@ class _FinalPreviewSheetState extends State<FinalPreviewSheet> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder:
-                            (context) => PrintSheet(
-                              items: widget.items,
-                              // ✅ ส่ง monthName เต็มต่อไปยัง PrintSheet
-                              monthName: widget.monthName,
-                            ),
-                      );
-                    },
+                    onPressed: _onConfirm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFED7D31),
                       shape: RoundedRectangleBorder(
@@ -301,14 +326,219 @@ class _FinalPreviewSheetState extends State<FinalPreviewSheet> {
   }
 }
 
-// ✅ _AlbumPreviewSection — แสดงเดือน + ปี ในกล่องชื่อ
+// ✅ Upload Progress Dialog Widget
+class _UploadProgressDialog extends StatefulWidget {
+  final String monthName;
+  final int total;
+  final Future<void> uploadFuture;
+  final int Function() getCurrentProgress;
+
+  const _UploadProgressDialog({
+    required this.monthName,
+    required this.total,
+    required this.uploadFuture,
+    required this.getCurrentProgress,
+  });
+
+  @override
+  State<_UploadProgressDialog> createState() => _UploadProgressDialogState();
+}
+
+class _UploadProgressDialogState extends State<_UploadProgressDialog> {
+  int _current = 0;
+  bool _isDone = false;
+  bool _hasError = false;
+  String _errorMsg = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _startUpload();
+  }
+
+  Future<void> _startUpload() async {
+    // ✅ อัปเดต progress ทุก 300ms
+    final ticker = Stream.periodic(const Duration(milliseconds: 300), (_) {
+      return widget.getCurrentProgress();
+    });
+
+    final sub = ticker.listen((progress) {
+      if (mounted && !_isDone) {
+        setState(() => _current = progress);
+      }
+    });
+
+    try {
+      await widget.uploadFuture;
+
+      sub.cancel();
+      if (mounted) {
+        setState(() {
+          _current = widget.total;
+          _isDone = true;
+        });
+      }
+
+      // ✅ รอ 1 วินาทีให้เห็น "สำเร็จ" แล้วปิด dialog
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      sub.cancel();
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMsg = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = widget.total > 0 ? _current / widget.total : 0.0;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── ไอคอน ──
+            SizedBox(
+              width: 64,
+              height: 64,
+              child:
+                  _hasError
+                      // ❌ Error
+                      ? Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.error_outline,
+                          color: Colors.red.shade400,
+                          size: 32,
+                        ),
+                      )
+                      : _isDone
+                      // ✅ สำเร็จ
+                      ? Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE8F5E9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_circle_outline,
+                          color: Color(0xFF66BB6A),
+                          size: 32,
+                        ),
+                      )
+                      // ⏳ กำลังโหลด — วงล้อหมุน
+                      : const CircularProgressIndicator(
+                        color: Color(0xFF6BB0C5),
+                        strokeWidth: 4,
+                      ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── ชื่อเดือน ──
+            Text(
+              widget.monthName,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── ข้อความสถานะ ──
+            Text(
+              _hasError
+                  ? 'เกิดข้อผิดพลาด'
+                  : _isDone
+                  ? 'บันทึกอัลบั้มสำเร็จ! 🎉'
+                  : 'กำลังอัพโหลดรูปภาพ...',
+              style: TextStyle(
+                fontSize: 14,
+                color:
+                    _hasError
+                        ? Colors.red.shade400
+                        : _isDone
+                        ? const Color(0xFF66BB6A)
+                        : Colors.grey[600],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            if (!_hasError) ...[
+              // ── Progress Bar ──
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _isDone ? 1.0 : progress,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _isDone ? const Color(0xFF66BB6A) : const Color(0xFF6BB0C5),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // ── ตัวเลข ──
+              Text(
+                _isDone
+                    ? '${widget.total}/${widget.total} รูป'
+                    : '$_current/${widget.total} รูป',
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
+            ],
+
+            // ── ปุ่ม error ──
+            if (_hasError) ...[
+              const SizedBox(height: 16),
+              Text(
+                _errorMsg,
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade400,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text('ปิด', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Album Preview Section ──
 class _AlbumPreviewSection extends StatelessWidget {
   final List<MediaItem> items;
-  final String monthName; // "มกราคม 2025"
+  final String monthName;
 
   const _AlbumPreviewSection({required this.items, required this.monthName});
 
-  // แยกเดือนและปี
   String get _monthTitle => monthName.split(' ')[0];
   String get _yearTitle {
     final parts = monthName.split(' ');
@@ -339,7 +569,6 @@ class _AlbumPreviewSection extends StatelessWidget {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        // ✅ กล่องชื่อเดือน + ปี
                         Container(
                           decoration: const BoxDecoration(color: Colors.white),
                           child: Center(
@@ -405,6 +634,7 @@ class _AlbumPreviewSection extends StatelessWidget {
   }
 }
 
+// ── Static Photo Slot ──
 class _StaticPhotoSlot extends StatefulWidget {
   final MediaItem item;
   const _StaticPhotoSlot({required this.item});
@@ -511,6 +741,7 @@ class _StaticPhotoSlotState extends State<_StaticPhotoSlot> {
   }
 }
 
+// ── Step Item ──
 class _StepItem extends StatelessWidget {
   final String label;
   final bool isActive;
