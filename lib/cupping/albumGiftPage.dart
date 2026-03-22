@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:wememmory/models/media_item.dart';
-import 'package:wememmory/shop/paymentPage.dart';
-import 'package:wememmory/shop/cartPage.dart';
+import 'package:wememmory/cupping/paymentPage.dart';
+import 'package:wememmory/cupping/cartPage.dart';
 
 class AlbumGiftPage extends StatefulWidget {
   const AlbumGiftPage({super.key});

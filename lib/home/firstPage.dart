@@ -5,7 +5,7 @@ import 'package:wememmory/Album/createAlbumModal.dart';
 import 'package:wememmory/constants.dart';
 import 'package:wememmory/home/homePage.dart';
 import 'package:wememmory/collection/collectionPage.dart';
-import 'package:wememmory/shop/shopPage.dart';
+import 'package:wememmory/cupping/cuppingsessionAll.dart/CoffeeEventScreen.dart';
 import 'package:wememmory/profile/profilePage.dart';
 import 'package:wememmory/models/media_item.dart';
 
@@ -52,12 +52,14 @@ class _FirstPageState extends State<FirstPage> {
         newAlbumItems: widget.newAlbumItems,
         newAlbumMonth: widget.newAlbumMonth,
       ),
+      const CoffeeEventScreen(),
+
+      const SizedBox(),
       CollectionPage(
         newAlbumItems: widget.newAlbumItems,
         newAlbumMonth: widget.newAlbumMonth,
       ),
-      const SizedBox(),
-      const ShopPage(),
+
       const ProfilePage(),
     ];
 
@@ -177,7 +179,7 @@ class CustomBottomNavBar extends StatelessWidget {
                       Expanded(
                         child: _buildNavItem(
                           iconPath: 'assets/icons/albumPage.png',
-                          label: 'สมุดภาพ',
+                          label: 'ประเมินกาแฟ',
                           index: 1,
                           isActive: currentIndex == 1,
                           activeColor: activeIconColor,
@@ -215,7 +217,7 @@ class CustomBottomNavBar extends StatelessWidget {
                       Expanded(
                         child: _buildNavItem(
                           iconPath: 'assets/icons/ShopPage.png',
-                          label: 'ร้านค้า',
+                          label: 'อัลบั้มกาแฟ',
                           index: 3,
                           isActive: currentIndex == 3,
                           activeColor: activeIconColor,

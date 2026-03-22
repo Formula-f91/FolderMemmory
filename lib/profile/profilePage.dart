@@ -6,12 +6,12 @@ import 'package:wememmory/profile/historyPayment.dart';
 import 'package:wememmory/profile/membershipPackage.dart';
 import 'package:wememmory/profile/couponPage.dart';
 import 'package:wememmory/profile/personalSecurityPage.dart';
-import 'package:wememmory/shop/addressSelectionPage.dart';
+import 'package:wememmory/cupping/addressSelectionPage.dart';
 import 'package:wememmory/profile/bankInfoPage.dart';
 import 'package:wememmory/profile/languagePage.dart';
-import 'package:wememmory/shop/termsAndServicesPage.dart';
+import 'package:wememmory/cupping/termsAndServicesPage.dart';
 import 'package:wememmory/profile/benefitsPage.dart';
-import 'package:wememmory/shop/faqPage.dart';
+import 'package:wememmory/cupping/faqPage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/index.dart';
 

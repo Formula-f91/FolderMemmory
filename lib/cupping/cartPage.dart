@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:wememmory/shop/paymentPage.dart';
+import 'package:wememmory/cupping/paymentPage.dart';
 
 const Color kPrimaryColor = Color(0xFFED7D31);
 const Color kBackgroundColor = Color(0xFFF5F5F5);

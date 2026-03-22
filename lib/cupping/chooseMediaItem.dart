@@ -5,7 +5,7 @@ import 'package:photo_manager/photo_manager.dart';
 
 // --- Imports จากโปรเจกต์ของคุณ ---
 import 'package:wememmory/models/media_item.dart';
-import 'package:wememmory/shop/paymentPage.dart'; 
+import 'package:wememmory/cupping/paymentPage.dart'; 
 
 // ==========================================
 // ส่วนที่ 1: หน้าเลือกรูปปก (AlbumCoverSelectionPage) - ย้ายมาเป็นหน้าแรก

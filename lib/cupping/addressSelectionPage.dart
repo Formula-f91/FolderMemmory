@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:wememmory/shop/address_model.dart';
-import 'package:wememmory/shop/editAddressPage.dart'; 
+import 'package:wememmory/cupping/address_model.dart';
+import 'package:wememmory/cupping/editAddressPage.dart'; 
 
 class AddressSelectionPage extends StatefulWidget {
   final AddressInfo? selected;

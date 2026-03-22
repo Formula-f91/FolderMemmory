@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:wememmory/shop/paymentSuccessPage.dart';
-import 'package:wememmory/shop/addCardPage.dart';
-import 'package:wememmory/shop/addressSelectionPage.dart';
-import 'package:wememmory/shop/couponPage.dart';
-import 'package:wememmory/shop/address_model.dart';
+import 'package:wememmory/cupping/paymentSuccessPage.dart';
+import 'package:wememmory/cupping/addCardPage.dart';
+import 'package:wememmory/cupping/addressSelectionPage.dart';
+import 'package:wememmory/cupping/couponPage.dart';
+import 'package:wememmory/cupping/address_model.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key});

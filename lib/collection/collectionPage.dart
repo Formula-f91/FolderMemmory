@@ -7,7 +7,7 @@ import 'package:wememmory/constants.dart';
 import 'package:wememmory/data/album_data.dart';
 import 'package:wememmory/models/media_item.dart';
 import 'package:wememmory/services/album_service.dart';
-import 'package:wememmory/shop/chooseMediaItem.dart';
+import 'package:wememmory/cupping/chooseMediaItem.dart';
 
 class CollectionPage extends StatefulWidget {
   final List<MediaItem>? newAlbumItems;

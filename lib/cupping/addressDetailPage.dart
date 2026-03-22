@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:wememmory/shop/address_model.dart'; // ตรวจสอบ path ให้ถูก
+import 'package:wememmory/cupping/address_model.dart'; // ตรวจสอบ path ให้ถูก
 
 class AddressPickerPage extends StatefulWidget {
   const AddressPickerPage({super.key});

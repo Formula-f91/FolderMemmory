@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:wememmory/shop/paymentSuccessPage.dart';
-import 'package:wememmory/shop/couponPage.dart';
-import 'package:wememmory/shop/addCardPage.dart';
+import 'package:wememmory/cupping/paymentSuccessPage.dart';
+import 'package:wememmory/cupping/couponPage.dart';
+import 'package:wememmory/cupping/addCardPage.dart';
 
 class PaymentPage extends StatefulWidget {
   final String packageName;

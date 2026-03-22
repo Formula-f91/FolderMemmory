@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // จำเป็นสำหรับ TextInputFormatter
-import 'package:wememmory/shop/address_model.dart'; // ตรวจสอบ path ให้ถูกต้อง
-import 'package:wememmory/shop/addressDetailPage.dart'; // ตรวจสอบ path ให้ถูกต้อง
+import 'package:wememmory/cupping/address_model.dart'; // ตรวจสอบ path ให้ถูกต้อง
+import 'package:wememmory/cupping/addressDetailPage.dart'; // ตรวจสอบ path ให้ถูกต้อง
 
 class EditAddressPage extends StatefulWidget {
   final int? index;
