@@ -1,25 +1,18 @@
-// sample_info_page.dart
+// sampleinfo.dart  (lib/cupping/creatcupping/sampleinfo.dart)
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:wememmory/cupping/creatcupping/editsample.dart';
+import 'package:wememmory/cupping/Service.dart/sample_service.dart';
 import 'package:wememmory/cupping/creatcupping/sample_coffee_model.dart';
+import 'package:wememmory/cupping/creatcupping/editsample.dart';
 
-// import 'package:wememmory/cupping/sample_coffee_model.dart';
-// import 'package:wememmory/cupping/edit_sample_page.dart';
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 const Color secondaryColor2 = Color(0xFF6B4226);
 
-// ── Models (ลบออกถ้า import จาก sample_coffee_model.dart แล้ว) ────────────────
-
 // ─────────────────────────────────────────────────────────────────────────────
-// SampleInfoPage — รับ initialSamples จาก AddCoffeeInfoPage
-// ส่ง List<SampleCoffee> กลับเมื่อ Save หรือกดย้อนกลับ
+// SampleInfoPage
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SampleInfoPage extends StatefulWidget {
   final List<SampleCoffee>? initialSamples;
-
   const SampleInfoPage({super.key, this.initialSamples});
 
   @override
@@ -211,7 +204,7 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
                     },
                   ),
 
-                  // ── Add from mock existing list ──
+                  // ── Add from Firestore Existing Sample ──
                   ListTile(
                     leading: const Icon(
                       Icons.list_alt,
@@ -276,8 +269,7 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
             color: Colors.black,
             size: 20,
           ),
-          onPressed:
-              () => Navigator.pop(context, samples), // ← ส่งกลับตอนกด back
+          onPressed: () => Navigator.pop(context, samples),
         ),
         centerTitle: true,
         title: const Text(
@@ -385,10 +377,13 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
   Widget _buildSampleItem(int index, SampleCoffee data) {
     String formattedDate = "-";
     try {
-      if (data.created_at != null) {
-        formattedDate = DateFormat(
-          'dd/MM/yyyy',
-        ).format(DateTime.parse(data.created_at!));
+      final dt =
+          data.createdAt ??
+          (data.created_at != null
+              ? DateTime.tryParse(data.created_at!)
+              : null);
+      if (dt != null) {
+        formattedDate = DateFormat('dd/MM/yyyy').format(dt);
       }
     } catch (_) {}
 
@@ -428,8 +423,6 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
               style: const TextStyle(fontSize: 12, color: Colors.black87),
             ),
             const Spacer(),
-
-            // ── Delete ──
             SizedBox(
               height: 30,
               width: 60,
@@ -449,8 +442,6 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
               ),
             ),
             const SizedBox(width: 8),
-
-            // ── Edit ──
             SizedBox(
               height: 30,
               width: 50,
@@ -491,8 +482,6 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
     );
   }
 
-  // ── Bottom Button ─────────────────────────────────────────────────────────
-
   Widget _buildBottomButton() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -504,7 +493,7 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
         width: double.infinity,
         height: 54,
         child: ElevatedButton(
-          onPressed: () => Navigator.pop(context, samples), // ← ส่งกลับตอน Save
+          onPressed: () => Navigator.pop(context, samples),
           style: ElevatedButton.styleFrom(
             backgroundColor: secondaryColor2,
             shape: RoundedRectangleBorder(
@@ -527,12 +516,11 @@ class _SampleInfoPageState extends State<SampleInfoPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ExistingSampleSheet — แสดง mock list สำหรับ "Add Existing Sample"
+// _ExistingSampleSheet — ขั้น 5: ดึงจาก Firestore จริง
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ExistingSampleSheet extends StatefulWidget {
   final List<SampleCoffee> alreadySelectedSamples;
-
   const _ExistingSampleSheet({required this.alreadySelectedSamples});
 
   @override
@@ -542,56 +530,42 @@ class _ExistingSampleSheet extends StatefulWidget {
 class _ExistingSampleSheetState extends State<_ExistingSampleSheet> {
   final TextEditingController _searchController = TextEditingController();
 
-  // ── Mock existing samples ─────────────────────────────────────────────────
-  final List<SampleCoffee> _allSamples = [
-    SampleCoffee(
-      id: 1,
-      sample_id: 'S0001',
-      sample_name: 'Ethiopia Yirgacheffe',
-      species: 'Arabica',
-      created_at: '2024-11-01T00:00:00',
-      sample_species: SampleSpecies(id: 1, name: 'Arabica'),
-    ),
-    SampleCoffee(
-      id: 2,
-      sample_id: 'S0002',
-      sample_name: 'Colombia Huila',
-      species: 'Arabica',
-      created_at: '2024-11-05T00:00:00',
-      sample_species: SampleSpecies(id: 1, name: 'Arabica'),
-    ),
-    SampleCoffee(
-      id: 3,
-      sample_id: 'S0003',
-      sample_name: 'Brazil Santos',
-      species: 'Robusta',
-      created_at: '2024-11-10T00:00:00',
-      sample_species: SampleSpecies(id: 2, name: 'Robusta'),
-    ),
-    SampleCoffee(
-      id: 4,
-      sample_id: 'S0004',
-      sample_name: 'Vietnam Culi',
-      species: 'Robusta',
-      created_at: '2024-12-01T00:00:00',
-      sample_species: SampleSpecies(id: 2, name: 'Robusta'),
-    ),
-    SampleCoffee(
-      id: 5,
-      sample_id: 'S0005',
-      sample_name: 'Thailand Doi Chang',
-      species: 'Arabica',
-      created_at: '2025-01-15T00:00:00',
-      sample_species: SampleSpecies(id: 1, name: 'Arabica'),
-    ),
-  ];
-
+  // ✅ ดึงจาก Firestore แทน mock list
+  List<SampleCoffee> _allSamples = [];
   List<SampleCoffee> _displayedList = [];
+  bool _isLoading = true;
+  String? _errorMsg;
 
   @override
   void initState() {
     super.initState();
-    _displayedList = List.from(_allSamples);
+    _loadSamples();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSamples() async {
+    try {
+      final result = await SampleService.getMySamples();
+      if (mounted) {
+        setState(() {
+          _allSamples = result;
+          _displayedList = List.from(result);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMsg = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _filterSearch(String query) {
@@ -666,7 +640,7 @@ class _ExistingSampleSheetState extends State<_ExistingSampleSheet> {
                 controller: _searchController,
                 onChanged: _filterSearch,
                 decoration: InputDecoration(
-                  hintText: "Search",
+                  hintText: "Search by ID or name",
                   hintStyle: TextStyle(color: Colors.grey.shade400),
                   prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -692,7 +666,49 @@ class _ExistingSampleSheetState extends State<_ExistingSampleSheet> {
             // ── List ──
             Expanded(
               child:
-                  _displayedList.isEmpty
+                  _isLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(
+                          color: secondaryColor2,
+                        ),
+                      )
+                      : _errorMsg != null
+                      ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 40,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _errorMsg!,
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLoading = true;
+                                  _errorMsg = null;
+                                });
+                                _loadSamples();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: secondaryColor2,
+                              ),
+                              child: const Text(
+                                "Retry",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      : _displayedList.isEmpty
                       ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -704,7 +720,9 @@ class _ExistingSampleSheetState extends State<_ExistingSampleSheet> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              "No existing samples found",
+                              _searchController.text.isNotEmpty
+                                  ? "No results for \"${_searchController.text}\""
+                                  : "No existing samples found",
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade400,
@@ -732,14 +750,16 @@ class _ExistingSampleSheetState extends State<_ExistingSampleSheet> {
                               .alreadySelectedSamples
                               .any((s) => s.sample_id == item.sample_id);
 
+                          // ✅ ใช้ createdAt DateTime โดยตรง
                           String dateStr = "-";
-                          try {
-                            if (item.created_at != null) {
-                              dateStr = DateFormat(
-                                'dd/MM/yyyy',
-                              ).format(DateTime.parse(item.created_at!));
-                            }
-                          } catch (_) {}
+                          final dt =
+                              item.createdAt ??
+                              (item.created_at != null
+                                  ? DateTime.tryParse(item.created_at!)
+                                  : null);
+                          if (dt != null) {
+                            dateStr = DateFormat('dd/MM/yyyy').format(dt);
+                          }
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

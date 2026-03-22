@@ -1,6 +1,10 @@
 // add_cupping_session_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:wememmory/cupping/Service.dart/cupping_service.dart';
+import 'package:wememmory/cupping/Service.dart/storage_service.dart';
 import 'package:wememmory/cupping/creatcupping/sample_coffee_model.dart';
 import 'package:wememmory/cupping/creatcupping/sampleinfo.dart';
 import 'package:wememmory/cupping/cuppingsessionAll.dart/cupping_session_model.dart';
@@ -40,9 +44,13 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
   int? _selectedCuppingModeId;
   int _currentStep = 1;
   bool _isSubmitting = false;
+  double _uploadProgress = 0;
 
   DateTime? _startDate;
   TimeOfDay? _startTime;
+
+  File? _pickedImageFile; // รูปที่ user เลือกใหม่
+  String? _existingImageUrl; // URL เดิม (กรณี edit)
 
   List<SampleCoffee> _selectedSamplesList = [];
 
@@ -54,8 +62,6 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     {'id': 5, 'name': 'Quick Mode 2'},
   ];
 
-  static int _idCounter = 100;
-
   @override
   void initState() {
     super.initState();
@@ -65,8 +71,14 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
       _locationController.text = s.location ?? '';
       _descController.text = s.description ?? '';
       _selectedCuppingModeId = s.cuppingModeId;
-
-      // ✅ startAt เป็น DateTime? แล้ว — ใช้โดยตรง ไม่ต้อง DateTime.tryParse()
+      _existingImageUrl = s.imageUrl;
+      if (s.participantLimit != null) {
+        _participantLimitController.text = s.participantLimit.toString();
+      }
+      if (s.participationFee != null && s.participationFee! > 0) {
+        _hasParticipationFee = true;
+        _participationFeeController.text = s.participationFee.toString();
+      }
       if (s.startAt != null) {
         _startDate = DateTime(
           s.startAt!.year,
@@ -77,6 +89,17 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
           hour: s.startAt!.hour,
           minute: s.startAt!.minute,
         );
+      }
+      // map sampleIdStructure string → index
+      switch (s.sampleIdStructure) {
+        case 'three_digit':
+          _selectedSampleIdStructure = 1;
+          break;
+        case 'letter':
+          _selectedSampleIdStructure = 2;
+          break;
+        default:
+          _selectedSampleIdStructure = 0;
       }
     }
   }
@@ -104,6 +127,26 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     if (time == null) return "HH:MM";
     return "${time.hour.toString().padLeft(2, '0')}:"
         "${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  String _getSampleIdStructureString() {
+    switch (_selectedSampleIdStructure) {
+      case 1:
+        return 'three_digit';
+      case 2:
+        return 'letter';
+      default:
+        return 'number';
+    }
+  }
+
+  String _getCuppingModeName(int? modeId) {
+    if (modeId == null) return "N/A";
+    final found = _mockModes.firstWhere(
+      (m) => m['id'] == modeId,
+      orElse: () => {},
+    );
+    return found['name'] ?? "Unknown";
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -141,14 +184,19 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     if (picked != null) setState(() => _startTime = picked);
   }
 
-  String _getCuppingModeName(int? modeId) {
-    if (modeId == null) return "N/A";
-    final found = _mockModes.firstWhere(
-      (m) => m['id'] == modeId,
-      orElse: () => {},
+  // ── Pick Image ────────────────────────────────────────────────────────────
+
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
     );
-    return found['name'] ?? "Unknown";
+    if (pickedFile != null) {
+      setState(() => _pickedImageFile = File(pickedFile.path));
+    }
   }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
 
   void _goBackStep() {
     if (_currentStep > 1) {
@@ -204,70 +252,161 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     }
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Submit — เชื่อม Firebase จริง ─────────────────────────────────────────
 
-  void _submitSession() {
-    setState(() => _isSubmitting = true);
-
-    // ✅ สร้าง DateTime โดยตรง — ไม่ใช้ ISO String อีกต่อไป
-    final DateTime startDateTime =
-        (_startDate != null && _startTime != null)
-            ? DateTime(
-              _startDate!.year,
-              _startDate!.month,
-              _startDate!.day,
-              _startTime!.hour,
-              _startTime!.minute,
-            )
-            : DateTime.now();
-
-    final DateTime endDateTime = startDateTime.add(const Duration(hours: 2));
-
-    // sessionId: edit ใช้ id เดิม, สร้างใหม่ใช้ counter
-    final String newSessionId =
-        (widget.isEdit && widget.existingSession?.sessionId != null)
-            ? widget.existingSession!.sessionId!
-            : 'local-${++_idCounter}';
-
-    final newSession = CuppingSession(
-      sessionId: newSessionId,
-      id: widget.isEdit ? widget.existingSession?.id : _idCounter,
-      cuppingName: _cuppingNameController.text.trim(),
-      description:
-          _descController.text.trim().isEmpty
-              ? 'No description'
-              : _descController.text.trim(),
-      // ✅ ส่ง DateTime ตรงๆ ตาม model ใหม่
-      startAt: startDateTime,
-      endAt: endDateTime,
-      isActive: 'Y',
-      location:
-          _locationController.text.trim().isEmpty
-              ? 'Unknown location'
-              : _locationController.text.trim(),
-      cuppingModeId: _selectedCuppingModeId,
-      sampleIdStructure: _getSampleIdStructureString(),
-      numberOfSamples: _selectedSamplesList.length,
-      isCreatedByMe: true,
-      createdAt: DateTime.now(),
-    );
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        Navigator.pop(context, newSession);
-      }
+  Future<void> _submitSession() async {
+    setState(() {
+      _isSubmitting = true;
+      _uploadProgress = 0;
     });
+
+    try {
+      final DateTime startDateTime =
+          (_startDate != null && _startTime != null)
+              ? DateTime(
+                _startDate!.year,
+                _startDate!.month,
+                _startDate!.day,
+                _startTime!.hour,
+                _startTime!.minute,
+              )
+              : DateTime.now();
+      final DateTime endDateTime = startDateTime.add(const Duration(hours: 2));
+
+      // ── Build SessionSample list ──
+      final samples =
+          _selectedSamplesList.asMap().entries.map((e) {
+            final code = _generateSampleCode(e.key);
+            return SessionSample(
+              sampleId: e.value.firestoreId ?? e.value.sample_id,
+              sessionSampleCode: code,
+              sortOrder: e.key + 1,
+            );
+          }).toList();
+
+      // ── Build CuppingSession object ──
+      final session = CuppingSession(
+        sessionId: widget.existingSession?.sessionId,
+        cuppingName: _cuppingNameController.text.trim(),
+        description:
+            _descController.text.trim().isEmpty
+                ? 'No description'
+                : _descController.text.trim(),
+        startAt: startDateTime,
+        endAt: endDateTime,
+        isActive: 'Y',
+        location:
+            _locationController.text.trim().isEmpty
+                ? 'Unknown location'
+                : _locationController.text.trim(),
+        cuppingModeId: _selectedCuppingModeId,
+        sampleIdStructure: _getSampleIdStructureString(),
+        participantLimit: int.tryParse(_participantLimitController.text) ?? 0,
+        participationFee:
+            _hasParticipationFee
+                ? (int.tryParse(_participationFeeController.text) ?? 0)
+                : 0,
+        numberOfSamples: samples.length,
+        imageUrl: _existingImageUrl, // จะอัปเดตทีหลังถ้ามีรูปใหม่
+        isCreatedByMe: true,
+      );
+
+      if (widget.isEdit && widget.existingSession?.sessionId != null) {
+        // ══ EDIT MODE ════════════════════════════════════════════════════════
+
+        final sessionId = widget.existingSession!.sessionId!;
+
+        // 1. อัปโหลดรูปใหม่ถ้ามี
+        String? imageUrl = _existingImageUrl;
+        if (_pickedImageFile != null) {
+          imageUrl = await StorageService.uploadWithProgress(
+            file: _pickedImageFile!,
+            sessionId: sessionId,
+            onProgress: (p) => setState(() => _uploadProgress = p),
+          );
+        }
+
+        // 2. Update Firestore
+        await CuppingService.updateSession(
+          sessionId: sessionId,
+          session: session.copyWith(imageUrl: imageUrl),
+          samples: samples,
+        );
+
+        // 3. Return updated session
+        final updated = session.copyWith(
+          sessionId: sessionId,
+          imageUrl: imageUrl,
+        );
+        if (mounted) Navigator.pop(context, updated);
+      } else {
+        // ══ CREATE MODE ══════════════════════════════════════════════════════
+
+        // 1. อัปโหลดรูปชั่วคราวก่อน (ยังไม่รู้ sessionId)
+        String? imageUrl;
+        String? tempPath;
+        if (_pickedImageFile != null) {
+          final temp = await StorageService.uploadTempCoverImage(
+            _pickedImageFile!,
+          );
+          imageUrl = temp.url;
+          tempPath = temp.storagePath;
+          setState(() => _uploadProgress = 0.5);
+        }
+
+        // 2. สร้าง session ใน Firestore
+        final sessionId = await CuppingService.createSession(
+          session: session.copyWith(imageUrl: imageUrl),
+          samples: samples,
+        );
+        setState(() => _uploadProgress = 0.8);
+
+        // 3. ย้ายรูปจาก temp → sessions/{sessionId}/cover.jpg
+        if (tempPath != null) {
+          imageUrl = await StorageService.moveTempToSession(
+            tempPath: tempPath,
+            sessionId: sessionId,
+          );
+          // อัปเดต imageUrl ใน Firestore
+          await CuppingService.updateSession(
+            sessionId: sessionId,
+            session: session.copyWith(sessionId: sessionId, imageUrl: imageUrl),
+          );
+        }
+        setState(() => _uploadProgress = 1.0);
+
+        // 4. Return new session
+        final newSession = session.copyWith(
+          sessionId: sessionId,
+          imageUrl: imageUrl,
+          isCreatedByMe: true,
+        );
+        if (mounted) Navigator.pop(context, newSession);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
-  String _getSampleIdStructureString() {
+  // ── Generate sample code ──────────────────────────────────────────────────
+
+  String _generateSampleCode(int index) {
     switch (_selectedSampleIdStructure) {
-      case 1:
-        return 'three_digit';
-      case 2:
-        return 'letter';
-      default:
-        return 'number';
+      case 1: // 3 Digit
+        return (100 + index).toString();
+      case 2: // Letter
+        return String.fromCharCode(65 + index); // A, B, C...
+      default: // Number
+        return (index + 1).toString();
     }
   }
 
@@ -307,6 +446,15 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
         ),
         body: Column(
           children: [
+            // ── Upload progress bar ──
+            if (_isSubmitting && _uploadProgress > 0 && _uploadProgress < 1)
+              LinearProgressIndicator(
+                value: _uploadProgress,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  secondaryColor2,
+                ),
+              ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
@@ -399,8 +547,6 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
 
         _buildLabel("Location"),
         _buildTextAreaField(controller: _locationController),
-        const SizedBox(height: 8),
-        _buildLocationMapButton(),
         const SizedBox(height: 20),
 
         _buildLabel("Cupping Activity Description"),
@@ -484,48 +630,13 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          height: 280,
-          color: Colors.brown.shade100,
-          child: const Icon(Icons.coffee, size: 80, color: Colors.brown),
-        ),
+        // รูปที่เลือก หรือรูปเดิม หรือ placeholder
+        _buildReviewImage(),
         Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: List.generate(
-                    3,
-                    (index) => Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.brown.shade50,
-                        border:
-                            index == 0
-                                ? Border.all(color: secondaryColor2, width: 2)
-                                : Border.all(
-                                  color: Colors.transparent,
-                                  width: 2,
-                                ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.coffee,
-                        color: Colors.brown,
-                        size: 30,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -541,36 +652,21 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _showSharePopup(context),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.black),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.share, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            "Share",
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                  OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.share, size: 18),
+                    label: const Text("Share"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: const BorderSide(color: Colors.black12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-
               Text(
                 _locationController.text.isEmpty
                     ? "Location"
@@ -578,14 +674,11 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 4),
-
-              // ✅ แสดงวันเวลาจาก DateTime โดยตรง
               Text(
                 "${_formatDate(_startDate)} ${_formatTime(_startTime)}",
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 12),
-
               Text(
                 _descController.text.isEmpty
                     ? "No description"
@@ -593,7 +686,6 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
                 style: TextStyle(color: Colors.grey[500], height: 1.5),
               ),
               const SizedBox(height: 16),
-
               Text(
                 "Cupping Protocol: ${_getCuppingModeName(_selectedCuppingModeId)}",
                 style: TextStyle(
@@ -603,7 +695,6 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
               Text(
                 "All Coffee Samples (${_selectedSamplesList.length} Samples)",
                 style: const TextStyle(
@@ -613,15 +704,14 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
               ),
               const SizedBox(height: 8),
               if (_selectedSamplesList.isNotEmpty)
-                ..._selectedSamplesList.map(
-                  (s) => _buildBulletPoint(
-                    "Sample ID : ${s.sample_id ?? '-'} — ${s.sample_name ?? '-'}",
+                ..._selectedSamplesList.asMap().entries.map(
+                  (e) => _buildBulletPoint(
+                    "${_generateSampleCode(e.key)} — ${e.value.sample_name ?? '-'}",
                   ),
                 )
               else
                 _buildBulletPoint("No samples selected"),
               const SizedBox(height: 20),
-
               const Text(
                 "Organizer",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -635,97 +725,81 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     );
   }
 
-  // ── Share Popup ───────────────────────────────────────────────────────────
+  // ── Reusable Widgets ──────────────────────────────────────────────────────
 
-  void _showSharePopup(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => Container(
-            height: 450,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Share Cupping Event",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                const SizedBox(height: 20),
-                Container(
-                  width: 200,
-                  height: 200,
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.qr_code_2, size: 100, color: Colors.grey),
-                  ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 30,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        "Download QR",
-                        style: TextStyle(color: Colors.grey[700], fontSize: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+  Widget _buildUploadBox() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade300, width: 1),
+        ),
+        child:
+            _pickedImageFile != null
+                ? Image.file(_pickedImageFile!, fit: BoxFit.cover)
+                : _existingImageUrl != null
+                ? Image.network(
+                  _existingImageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _uploadPlaceholder(),
+                )
+                : _uploadPlaceholder(),
+      ),
     );
   }
 
-  // ── Reusable Widgets ──────────────────────────────────────────────────────
+  Widget _uploadPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 40,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Tap to select image",
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewImage() {
+    if (_pickedImageFile != null) {
+      return Image.file(
+        _pickedImageFile!,
+        height: 280,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+    if (_existingImageUrl != null) {
+      return Image.network(
+        _existingImageUrl!,
+        height: 280,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackImage(),
+      );
+    }
+    return _fallbackImage();
+  }
+
+  Widget _fallbackImage() {
+    return Container(
+      width: double.infinity,
+      height: 280,
+      color: Colors.brown.shade100,
+      child: const Icon(Icons.coffee, size: 80, color: Colors.brown),
+    );
+  }
 
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8.0),
@@ -825,56 +899,6 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
             ),
             Icon(icon, size: 18, color: Colors.grey.shade600),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUploadBox() {
-    return GestureDetector(
-      onTap: () {
-        /* TODO: image picker */
-      },
-      child: Container(
-        width: double.infinity,
-        height: 200,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey.shade300, width: 1),
-        ),
-        child: Center(
-          child: Container(
-            width: 60,
-            height: 70,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Icon(
-              Icons.image_outlined,
-              size: 32,
-              color: Colors.grey.shade400,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationMapButton() {
-    return SizedBox(
-      height: 42,
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          /* TODO: MapLocationPicker */
-        },
-        icon: const Icon(Icons.location_on, size: 18, color: Colors.white),
-        label: const Text("Select Location on Map"),
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-          side: const BorderSide(color: secondaryColor2),
-          foregroundColor: Colors.white,
-          backgroundColor: secondaryColor2,
         ),
       ),
     );

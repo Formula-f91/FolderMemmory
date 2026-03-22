@@ -1,17 +1,23 @@
 // coffedetail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:wememmory/cupping/Service.dart/cupping_service.dart';
 import 'package:wememmory/cupping/cuppingsessionAll.dart/cupping_session_model.dart';
+import 'package:wememmory/cupping/cuppingsessionAll.dart/result_screen.dart';
+
+// TODO: uncomment เมื่อมีหน้า form จริง
+// import 'package:wememmory/cupping/Descriptive/descriptive_step1.dart';
+// import 'package:wememmory/cupping/Affective/affective_step1.dart';
+// import 'package:wememmory/cupping/Combined/combined_screen.dart';
+// import 'package:wememmory/cupping/Quickmode/quick_result.dart';
 
 const Color secondaryColor2 = Color(0xFF6B4226);
 
 class CoffeeDetailScreen extends StatefulWidget {
   final bool isAvailable;
   final CuppingSession eventData;
-  final String pageType; // "All", "Create", "Join"
+  final String pageType;
   final JoinCupping? joinCupping;
-  final VoidCallback? onJoin;
 
   const CoffeeDetailScreen({
     super.key,
@@ -19,7 +25,6 @@ class CoffeeDetailScreen extends StatefulWidget {
     required this.eventData,
     required this.pageType,
     this.joinCupping,
-    this.onJoin,
   });
 
   @override
@@ -27,7 +32,17 @@ class CoffeeDetailScreen extends StatefulWidget {
 }
 
 class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
+  bool _isJoining = false;
   bool _hasJoined = false;
+  String? _participantDocId;
+
+  @override
+  void initState() {
+    super.initState();
+    _participantDocId = widget.joinCupping?.participantDocId;
+    // ถ้าอยู่ใน join tab แล้ว ถือว่า join แล้ว
+    if (widget.pageType == 'Join') _hasJoined = true;
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -48,7 +63,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
     }
   }
 
-  // ✅ รับ DateTime? โดยตรง — ไม่ต้อง DateTime.parse(String) อีกต่อไป
   String _formatDateTimeRange(DateTime? start, DateTime? end) {
     if (start == null) return "No date specified";
     final format = DateFormat('dd MMM yyyy (HH:mm)');
@@ -59,135 +73,165 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
 
   // ── Join ──────────────────────────────────────────────────────────────────
 
-  void _handleJoin() {
-    widget.onJoin?.call();
-    setState(() => _hasJoined = true);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(28.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE5F9EA),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Color(0xFF4CAF50),
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Joined Successfully!",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You have joined\n"${widget.eventData.cuppingName}"',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Check your session in the "Join" tab',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: secondaryColor2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
+  Future<void> _handleJoin() async {
+    if (_isJoining) return;
+    setState(() => _isJoining = true);
+    try {
+      final sessionId = widget.eventData.sessionId;
+      if (sessionId == null) throw Exception('sessionId is null');
+
+      // บันทึกลง Firestore
+      final docId = await CuppingService.joinSession(sessionId);
+      setState(() {
+        _hasJoined = true;
+        _participantDocId = docId;
+      });
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(28.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE5F9EA),
+                        shape: BoxShape.circle,
                       ),
-                      child: const Text(
-                        "Back to Events",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Color(0xFF4CAF50),
+                        size: 40,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Joined Successfully!",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You have joined\n"${widget.eventData.cuppingName}"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Check the "Join" tab to start cupping',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: secondaryColor2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "Back to Events",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Join failed: $e'),
+            backgroundColor: Colors.red,
           ),
-    );
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isJoining = false);
+    }
   }
 
-  // ── Start Cupping ─────────────────────────────────────────────────────────
+  // ── Start Cupping — navigate ตาม modeId ──────────────────────────────────
 
   void _handleStartCupping() {
     final modeId = widget.eventData.cuppingModeId;
-    final modeName = _getCuppingModeName(modeId);
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text("Start Cupping"),
-            content: Text(
-              'Starting "$modeName" mode\nfor "${widget.eventData.cuppingName}"',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: navigate to cupping form ตาม modeId
-                  // if (modeId == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => DescriptiveStep1(...)));
-                  // if (modeId == 2) Navigator.push(context, MaterialPageRoute(builder: (_) => AffectiveStep1(...)));
-                  // if (modeId == 3) Navigator.push(context, MaterialPageRoute(builder: (_) => CombinedAssessmentScreen(...)));
-                  // if (modeId == 4 || modeId == 5) Navigator.push(context, MaterialPageRoute(builder: (_) => CombinedResult(...)));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Opening $modeName form...'),
-                      backgroundColor: secondaryColor2,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: secondaryColor2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  "Start",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
+    final sessionId = widget.eventData.sessionId ?? '';
+    final participantDocId = _participantDocId ?? '';
+
+    // TODO: uncomment แต่ละ branch เมื่อมีหน้า form จริง
+    switch (modeId) {
+      case 1:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Descriptive form...')),
+        );
+        // Navigator.push(context, MaterialPageRoute(builder: (_) =>
+        //   DescriptiveStep1(eventData: widget.eventData,
+        //     participantDocId: participantDocId)));
+        break;
+      case 2:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Affective form...')),
+        );
+        // Navigator.push(context, MaterialPageRoute(builder: (_) =>
+        //   AffectiveStep1(eventData: widget.eventData,
+        //     participantDocId: participantDocId)));
+        break;
+      case 3:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Combined form...')),
+        );
+        break;
+      case 4:
+      case 5:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Quick Mode form...')),
+        );
+        break;
+      default:
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Unknown cupping mode')));
+    }
+  }
+
+  // ── View Result ───────────────────────────────────────────────────────────
+
+  void _handleViewResult() {
+    final sessionId = widget.eventData.sessionId;
+    if (sessionId == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultScreen(session: widget.eventData),
+      ),
     );
   }
 
@@ -236,15 +280,12 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Main Image ──
                   _buildCoverImage(data.imageUrl),
-
                   Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Title + Share ──
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -257,7 +298,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             OutlinedButton.icon(
                               onPressed: () {},
                               icon: const Icon(Icons.share, size: 18),
@@ -274,7 +314,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // ── Status badge ──
+                        // Status badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -303,14 +343,11 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // ── Info rows ──
                         _buildInfoRow(
                           Icons.location_on_outlined,
                           data.location ?? "Unknown location",
                         ),
                         const SizedBox(height: 10),
-
-                        // ✅ ส่ง DateTime? โดยตรง
                         _buildInfoRow(
                           Icons.access_time,
                           _formatDateTimeRange(data.startAt, data.endAt),
@@ -325,7 +362,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                         const Divider(),
                         const SizedBox(height: 16),
 
-                        // ── Description ──
                         const Text(
                           "Description",
                           style: TextStyle(
@@ -335,7 +371,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          data.description ?? "No description available.",
+                          data.description ?? "No description.",
                           style: TextStyle(
                             color: Colors.grey[600],
                             height: 1.6,
@@ -343,7 +379,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // ── Coffee Samples ──
                         Text(
                           "Coffee Samples (${data.numberOfSamples ?? 0} Samples)",
                           style: const TextStyle(
@@ -361,7 +396,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                           ),
                         const SizedBox(height: 24),
 
-                        // ── Organizer ──
                         const Text(
                           "Organizer",
                           style: TextStyle(
@@ -376,7 +410,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                               : "Coffee Session Organizer",
                         ),
 
-                        // ── Join status (Join tab) ──
+                        // Join status card
                         if (isJoinTab) ...[
                           const SizedBox(height: 20),
                           Container(
@@ -411,7 +445,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                                 Text(
                                   cuppingDone
                                       ? "Cupping completed"
-                                      : "You've joined — ready to start cupping",
+                                      : "Ready to start cupping",
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
@@ -433,7 +467,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
             ),
           ),
 
-          // ── Bottom Action ──
           _buildBottomAction(
             isAllTab: isAllTab,
             isJoinTab: isJoinTab,
@@ -445,8 +478,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
     );
   }
 
-  // ── Cover Image ───────────────────────────────────────────────────────────
-  // ✅ รองรับ imageUrl จาก Firebase Storage
+  // ── Reusable ──────────────────────────────────────────────────────────────
 
   Widget _buildCoverImage(String? imageUrl) {
     if (imageUrl != null && imageUrl.isNotEmpty) {
@@ -455,74 +487,62 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
         height: 280,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fallbackImage(),
+        errorBuilder: (_, __, ___) => _fallbackImage(),
       );
     }
     return _fallbackImage();
   }
 
-  Widget _fallbackImage() {
-    return SizedBox(
-      width: double.infinity,
-      height: 280,
-      child: Image.asset(
-        'assets/images/coffee5.png',
-        fit: BoxFit.cover,
-        errorBuilder:
-            (context, error, stackTrace) => Container(
-              color: Colors.brown.shade100,
-              child: const Icon(Icons.coffee, size: 80, color: Colors.brown),
-            ),
+  Widget _fallbackImage() => SizedBox(
+    width: double.infinity,
+    height: 280,
+    child: Image.asset(
+      'assets/images/coffee5.png',
+      fit: BoxFit.cover,
+      errorBuilder:
+          (_, __, ___) => Container(
+            color: Colors.brown.shade100,
+            child: const Icon(Icons.coffee, size: 80, color: Colors.brown),
+          ),
+    ),
+  );
+
+  Widget _buildInfoRow(IconData icon, String text) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 18, color: Colors.grey[600]),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          text,
+          style: TextStyle(color: Colors.grey[700], fontSize: 14, height: 1.5),
+        ),
       ),
-    );
-  }
+    ],
+  );
 
-  // ── Reusable ──────────────────────────────────────────────────────────────
-
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBulletPoint(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Row(
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
+        Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: secondaryColor2,
+            shape: BoxShape.circle,
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 14,
-              height: 1.5,
-            ),
+            style: TextStyle(color: Colors.grey[800], fontSize: 14),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: secondaryColor2,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: Colors.grey[800], fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 
   Widget _buildBottomAction({
     required bool isAllTab,
@@ -535,7 +555,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
     if (isAllTab && !_hasJoined) {
       final bool canJoin = widget.eventData.isActive == 'Y';
       button = ElevatedButton(
-        onPressed: canJoin ? _handleJoin : null,
+        onPressed: canJoin ? (_isJoining ? null : _handleJoin) : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: canJoin ? secondaryColor2 : Colors.grey[400],
           foregroundColor: Colors.white,
@@ -545,10 +565,23 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
           ),
           elevation: 0,
         ),
-        child: Text(
-          canJoin ? "Join Session" : "Session Closed",
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        child:
+            _isJoining
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : Text(
+                  canJoin ? "Join Session" : "Session Closed",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
       );
     } else if (isAllTab && _hasJoined) {
       button = ElevatedButton(
@@ -586,9 +619,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
       );
     } else if (isJoinTab && cuppingDone) {
       button = ElevatedButton(
-        onPressed: () {
-          // TODO: navigate to result screen
-        },
+        onPressed: _handleViewResult,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
@@ -604,7 +635,6 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
         ),
       );
     } else {
-      // Create tab
       button = ElevatedButton(
         onPressed: () => Navigator.pop(context),
         style: ElevatedButton.styleFrom(

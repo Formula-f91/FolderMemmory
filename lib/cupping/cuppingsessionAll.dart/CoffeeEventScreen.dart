@@ -1,70 +1,14 @@
 // CoffeeEventScreen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:wememmory/cupping/Service.dart/cupping_service.dart';
 import 'package:wememmory/cupping/cuppingsessionAll.dart/cupping_session_model.dart';
 import 'package:wememmory/cupping/cuppingsessionAll.dart/coffedetail_screen.dart';
-import 'package:wememmory/cupping/creatcupping/add_cupping_session_screen.dart' hide CuppingSession;
+import 'package:wememmory/cupping/creatcupping/add_cupping_session_screen.dart'
+    hide CuppingSession;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const Color secondaryColor2 = Color(0xFF6B4226);
 const Color primaryColor = Color(0xFF3E2723);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data  (ใช้ DateTime แทน String ตาม model ใหม่)
-// ─────────────────────────────────────────────────────────────────────────────
-
-final List<CuppingSession> _initialAllSessions = [
-  CuppingSession(
-    id: 1,
-    sessionId: 'mock-1',
-    cuppingName: 'Single Origin Showcase',
-    description:
-        'A cupping session focused on Ethiopian and Colombian single origins.',
-    startAt: DateTime(2025, 4, 1, 9, 0),
-    endAt: DateTime(2025, 4, 1, 12, 0),
-    isActive: 'Y',
-    location: 'Bangkok, Thailand',
-    cuppingModeId: 1,
-    numberOfSamples: 5,
-    isCreatedByMe: false,
-  ),
-  CuppingSession(
-    id: 2,
-    sessionId: 'mock-2',
-    cuppingName: 'Washed vs Natural',
-    description:
-        'Explore the differences between washed and natural processed beans.',
-    startAt: DateTime(2025, 4, 10, 13, 0),
-    endAt: DateTime(2025, 4, 10, 16, 0),
-    isActive: 'N',
-    location: 'Chiang Mai, Thailand',
-    cuppingModeId: 2,
-    numberOfSamples: 4,
-    isCreatedByMe: false,
-  ),
-];
-
-final List<JoinCupping> _initialJoinCupping = [
-  JoinCupping(
-    cupping_session: CuppingSession(
-      id: 3,
-      sessionId: 'mock-3',
-      cuppingName: 'Espresso Deep Dive',
-      description: 'Intensive espresso tasting session with baristas.',
-      startAt: DateTime(2025, 4, 15, 10, 0),
-      endAt: DateTime(2025, 4, 15, 13, 0),
-      isActive: 'Y',
-      location: 'Phuket, Thailand',
-      isCreatedByMe: false,
-    ),
-    cupping_status: false,
-  ),
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CoffeeEventScreen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class CoffeeEventScreen extends StatefulWidget {
   const CoffeeEventScreen({super.key});
@@ -79,48 +23,18 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  final List<CuppingSession> _allSessions = List.from(_initialAllSessions);
-  final List<CuppingSession> _mySessions = [];
-  final List<JoinCupping> _joinCupping = List.from(_initialJoinCupping);
+  // ── Streams จาก Firestore ─────────────────────────────────────────────────
+  // ใช้ StreamBuilder แทน setState ทำให้ข้อมูล real-time อัตโนมัติ
+  late Stream<List<CuppingSession>> _allStream;
+  late Stream<List<CuppingSession>> _myStream;
+  late Stream<List<JoinCupping>> _joinStream;
 
-  // ── Filtered getters ──────────────────────────────────────────────────────
-
-  List<CuppingSession> get _filteredAllSessions {
-    // กรอง session ที่ join แล้วออก โดยเทียบจาก sessionId
-    final joinedIds =
-        _joinCupping.map((j) => j.cupping_session?.sessionId).toSet();
-    final available =
-        _allSessions.where((s) => !joinedIds.contains(s.sessionId)).toList();
-    if (_searchQuery.isEmpty) return available;
-    return available
-        .where(
-          (s) => (s.cuppingName ?? '').toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ),
-        )
-        .toList();
-  }
-
-  List<CuppingSession> get _filteredMySessions {
-    if (_searchQuery.isEmpty) return _mySessions;
-    return _mySessions
-        .where(
-          (s) => (s.cuppingName ?? '').toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ),
-        )
-        .toList();
-  }
-
-  List<JoinCupping> get _filteredJoinCupping {
-    if (_searchQuery.isEmpty) return _joinCupping;
-    return _joinCupping
-        .where(
-          (j) => (j.cupping_session?.cuppingName ?? '').toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ),
-        )
-        .toList();
+  @override
+  void initState() {
+    super.initState();
+    _allStream = CuppingService.streamAllSessions();
+    _myStream = CuppingService.streamMySessions();
+    _joinStream = CuppingService.streamJoinedSessions();
   }
 
   @override
@@ -129,34 +43,42 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
     super.dispose();
   }
 
-  // ── Join session ──────────────────────────────────────────────────────────
+  // ── Filter helper ─────────────────────────────────────────────────────────
 
-  void _joinSession(CuppingSession session) {
-    final alreadyJoined = _joinCupping.any(
-      (j) => j.cupping_session?.sessionId == session.sessionId,
-    );
-    if (alreadyJoined) return;
-    setState(() {
-      _joinCupping.add(
-        JoinCupping(cupping_session: session, cupping_status: false),
-      );
-    });
+  List<CuppingSession> _filterSessions(List<CuppingSession> sessions) {
+    if (_searchQuery.isEmpty) return sessions;
+    return sessions
+        .where(
+          (s) => (s.cuppingName ?? '').toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
+  }
+
+  List<JoinCupping> _filterJoins(List<JoinCupping> joins) {
+    if (_searchQuery.isEmpty) return joins;
+    return joins
+        .where(
+          (j) => (j.cupping_session?.cuppingName ?? '').toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
   Future<void> _openAddPage() async {
-    final result = await Navigator.push<CuppingSession>(
+    // ไม่ต้อง setState เพราะ stream จะอัปเดตอัตโนมัติ
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddCoffeeInfoPage()),
     );
-    if (result != null && mounted) {
-      setState(() => _mySessions.add(result));
-    }
   }
 
   Future<void> _openEditPage(CuppingSession session) async {
-    final result = await Navigator.push<CuppingSession>(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder:
@@ -164,15 +86,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                 AddCoffeeInfoPage(isEdit: true, existingSession: session),
       ),
     );
-    if (result != null && mounted) {
-      setState(() {
-        // เทียบ sessionId แทน int id
-        final index = _mySessions.indexWhere(
-          (s) => s.sessionId == result.sessionId,
-        );
-        if (index != -1) _mySessions[index] = result;
-      });
-    }
   }
 
   void _openDetailScreen(
@@ -189,10 +102,9 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
               eventData: event,
               pageType: pageType,
               joinCupping: join,
-              onJoin: pageType == 'All' ? () => _joinSession(event) : null,
             ),
       ),
-    ).then((_) => setState(() {}));
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -236,55 +148,98 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
     );
   }
 
-  // ── Content ───────────────────────────────────────────────────────────────
+  // ── Content (StreamBuilder แต่ละ tab) ─────────────────────────────────────
 
   Widget _buildContent() {
     if (selectedCategory == "All") {
-      final sessions = _filteredAllSessions;
-      if (sessions.isEmpty) return _buildEmpty();
-      return ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: sessions.length,
-        itemBuilder:
-            (context, index) => _buildEventCard(sessions[index], 'All', null),
+      return StreamBuilder<List<CuppingSession>>(
+        stream: _allStream,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return _buildLoading();
+          }
+          if (snap.hasError) return _buildError(snap.error.toString());
+          final sessions = _filterSessions(snap.data ?? []);
+          if (sessions.isEmpty) return _buildEmpty();
+          return _buildSessionList(sessions, 'All');
+        },
       );
     }
+
     if (selectedCategory == "Create") {
-      final sessions = _filteredMySessions;
-      if (sessions.isEmpty) return _buildEmpty();
-      return ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: sessions.length,
-        itemBuilder:
-            (context, index) =>
-                _buildEventCard(sessions[index], 'Create', null),
+      return StreamBuilder<List<CuppingSession>>(
+        stream: _myStream,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return _buildLoading();
+          }
+          if (snap.hasError) return _buildError(snap.error.toString());
+          final sessions = _filterSessions(snap.data ?? []);
+          if (sessions.isEmpty) return _buildEmpty();
+          return _buildSessionList(sessions, 'Create');
+        },
       );
     }
+
     // Join tab
-    final joins = _filteredJoinCupping;
-    if (joins.isEmpty) return _buildEmpty();
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: joins.length,
-      itemBuilder:
-          (context, index) => _buildEventCard(
-            joins[index].cupping_session!,
-            'Join',
-            joins[index],
-          ),
+    return StreamBuilder<List<JoinCupping>>(
+      stream: _joinStream,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _buildLoading();
+        }
+        if (snap.hasError) return _buildError(snap.error.toString());
+        final joins = _filterJoins(snap.data ?? []);
+        if (joins.isEmpty) return _buildEmpty();
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: joins.length,
+          itemBuilder:
+              (context, index) => _buildEventCard(
+                joins[index].cupping_session!,
+                'Join',
+                joins[index],
+              ),
+        );
+      },
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Text(
-        _searchQuery.isNotEmpty
-            ? 'ไม่พบ "$_searchQuery"'
-            : 'ไม่มีข้อมูล Cupping Session',
-        style: const TextStyle(color: Colors.grey),
-      ),
+  Widget _buildSessionList(List<CuppingSession> sessions, String pageType) {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: sessions.length,
+      itemBuilder:
+          (context, index) => _buildEventCard(sessions[index], pageType, null),
     );
   }
+
+  Widget _buildLoading() =>
+      const Center(child: CircularProgressIndicator(color: secondaryColor2));
+
+  Widget _buildError(String msg) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.error_outline, color: Colors.red, size: 40),
+        const SizedBox(height: 8),
+        Text(
+          msg,
+          style: const TextStyle(color: Colors.red),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildEmpty() => Center(
+    child: Text(
+      _searchQuery.isNotEmpty
+          ? 'ไม่พบ "$_searchQuery"'
+          : 'ไม่มีข้อมูล Cupping Session',
+      style: const TextStyle(color: Colors.grey),
+    ),
+  );
 
   // ── Header ────────────────────────────────────────────────────────────────
 
@@ -395,7 +350,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
     String pageType,
     JoinCupping? joinCupping,
   ) {
-    // ✅ ใช้ DateTime โดยตรงจาก model ใหม่
     final String startDate =
         event.startAt != null
             ? DateFormat('dd/MM/yyyy (HH:mm)').format(event.startAt!)
@@ -424,15 +378,12 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image ──
             _buildCoverImage(event.imageUrl),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Title ──
                   Text(
                     event.cuppingName ?? 'Unnamed Session',
                     style: const TextStyle(
@@ -441,8 +392,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-
-                  // ── Description ──
                   Text(
                     event.description ?? 'No description',
                     style: TextStyle(color: Colors.grey[500]),
@@ -452,8 +401,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
-
-                  // ── Date ──
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -475,43 +422,35 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Flexible(
-                        child: Container(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  event.isActive == 'Y'
-                                      ? const Color(0xFFE5F9EA)
-                                      : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
                               event.isActive == 'Y'
-                                  ? 'Open for Evaluation'
-                                  : 'Closed',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    event.isActive == 'Y'
-                                        ? const Color(0xFF4CAF50)
-                                        : Colors.black,
-                              ),
-                            ),
+                                  ? const Color(0xFFE5F9EA)
+                                  : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          event.isActive == 'Y'
+                              ? 'Open for Evaluation'
+                              : 'Closed',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                event.isActive == 'Y'
+                                    ? const Color(0xFF4CAF50)
+                                    : Colors.black,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // ── Location + Buttons ──
                   Row(
                     children: [
                       Icon(Icons.location_on, size: 24, color: secondaryColor2),
@@ -527,8 +466,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-
-                      // Edit — Create tab only
                       if (pageType == "Create") ...[
                         ElevatedButton(
                           onPressed: () => _openEditPage(event),
@@ -550,8 +487,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                         ),
                         const SizedBox(width: 8),
                       ],
-
-                      // Action button
                       ElevatedButton(
                         onPressed:
                             () =>
@@ -569,8 +504,7 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                           pageType == "Join" &&
                                   joinCupping?.cupping_status == true
                               ? "Result"
-                              : pageType == "Join" &&
-                                  joinCupping?.cupping_status == false
+                              : pageType == "Join"
                               ? "Start"
                               : "Read More",
                           style: const TextStyle(fontSize: 12),
@@ -587,9 +521,6 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
     );
   }
 
-  // ── Cover Image ───────────────────────────────────────────────────────────
-  // ✅ รองรับทั้ง imageUrl จาก Firebase Storage และ fallback asset
-
   Widget _buildCoverImage(String? imageUrl) {
     if (imageUrl != null && imageUrl.isNotEmpty) {
       return Image.network(
@@ -597,7 +528,7 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
         height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fallbackImage(),
+        errorBuilder: (_, __, ___) => _fallbackImage(),
       );
     }
     return _fallbackImage();
@@ -610,9 +541,8 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
       width: double.infinity,
       fit: BoxFit.cover,
       errorBuilder:
-          (context, error, stackTrace) => Container(
+          (_, __, ___) => Container(
             height: 180,
-            width: double.infinity,
             color: Colors.brown.shade100,
             child: const Icon(Icons.coffee, size: 60, color: Colors.brown),
           ),
